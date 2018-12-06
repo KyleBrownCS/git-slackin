@@ -1,5 +1,6 @@
 {
   "github_token": "mygithubtoken",
   "github_secret": "super secret",
-  "slack": "xoxp-a-slack-token"
+  "slack": "xoxp-a-slack-token",
+  "slack_manager_id": "U99A99AAA"
 }

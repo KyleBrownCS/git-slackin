@@ -1,7 +1,7 @@
 const { WebClient } = require('@slack/client');
 const config = require('config');
-const { findBySlackUserId } = require('./users');
-const logger = require('../logger');
+const { findBySlackUserId } = require('../users');
+const logger = require('../../logger');
 
 // Setup Slack web client
 const token = config.get('slack');

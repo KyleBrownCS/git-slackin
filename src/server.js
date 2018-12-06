@@ -2,19 +2,19 @@ const express = require('express');
 const app = express();
 const port = 8778;
 const bodyParser = require('body-parser');
-
+const config = require('config');
 const logger = require('./logger');
 // My modules
-const handlers = require('./lib/githubWebhookHandlers');
-const slackAction = require('./lib/slackActions');
-const slackEvents = require('./lib/slackEvents');
+const githubWebhooks = require('./lib/github/webhookRouter');
+const slackAction = require('./lib/slack/actionHandlers');
+const slackEvents = require('./lib/slack/eventHandlers');
 
 
 // Bootup message stuff
-const messenger = require('./lib/messenger');
+const messenger = require('./lib/slack/message');
 const users = require('./lib/users');
 
-async function performBootupMessage() {
+async function generateAndSendBootMessage() {
   const availableUsers = await users.listAvailableUsers(true);
   const benchedUsers = await users.listBenchedUsers(true);
 
@@ -49,12 +49,20 @@ async function performBootupMessage() {
       },
     ],
   };
-  // todo: Send this to a designated user
-  logger.info(messageObject);
+
+  if (config.get('slack_manager_id')) {
+    return messenger.send(config.get('slack_manager_id'), messageObject);
+  } else {
+    logger.info(`Available Users: ${availableUsersString}\nBenched Users: ${benchedUsersString}`);
+  }
 }
 
 // could put logic around this.
-performBootupMessage();
+if (!process.env.GS_SILENT) {
+  generateAndSendBootMessage();
+} else {
+  logger.info('[BOOT] Silent.');
+}
 // end bootup message stuff
 
 app.use(bodyParser.json());
@@ -63,7 +71,7 @@ app.use(bodyParser.json());
 app.post('/payload', (req, res) => {
   if (req.headers['x-github-event'] === 'pull_request' ||
   req.headers['x-github-event'] === 'pull_request_review') {
-    return handlers.handle(req.body, { signature: req.headers['x-hub-signature'] })
+    return githubWebhooks.handle(req.body, { signature: req.headers['x-hub-signature'] })
       .then(() => res.sendStatus(200))
       .catch((msg = 'Not supported') => res.status(500).send(msg));
   } else if (req.headers['x-github-event'] === 'ping') {

@@ -1,11 +1,10 @@
 const octokit = require('@octokit/rest')();
 const config = require('config');
-const crypto = require('crypto');
 
 // My Modules
-const logger = require('../logger');
-const { selectRandomGithubUsersNot, findByGithubName } = require('./users');
-const { send } = require('./messenger');
+const logger = require('../../logger');
+const { selectRandomGithubUsersNot, findByGithubName } = require('../users');
+const { send } = require('../slack/message');
 
 // Number of reviewers required for our workflow. Could move to config eventually.
 const NUM_REVIEWERS = 2;
@@ -16,7 +15,7 @@ octokit.authenticate({
   token: config.get('github_token'),
 });
 
-function sendOpenedPrMessages(opener, users, body) {
+function sendReviewRequestMessage(opener, users, body) {
   const messagesQueue = users.map(user => {
     logger.info(`Send to ${user.name}`);
     const conversationId = user.slack.id;
@@ -48,7 +47,7 @@ function sendOpenedPrMessages(opener, users, body) {
   return Promise.all(messagesQueue);
 }
 
-async function informOpener(opener, reviewers, prObj) {
+async function sendOpenerInitialStateMessage(opener, reviewers, prObj) {
   const conversationId = opener.slack.id;
   const reviewersNames = reviewers.map(user => `<@${user.slack.id}>`);
   const message = `You opened <${prObj.html_url}|PR #${prObj.number}> ` +
@@ -101,13 +100,12 @@ async function requestReviewersAndAssignees(users, body) {
 
 // Handle everything we want to do about opening a PR.
 // v1: randomly pick 2 users and send them links on Slack
-async function openedPR(body) {
+async function prOpened(body) {
   try {
     // TODO: Have findByGithubName fail better if it can't find the person
     const opener = await findByGithubName(body.pull_request.user.login);
 
-    // TODO: Should I include assignees in this? Or are we trusting its always equal?
-    // Making this do both could be a future enhancement
+    // NOTE: This uses assignees because requested reviewers come back in separate events
     const numReviewersAlready = body.pull_request.assignees.length;
     const numReviewersToRandomlySelect = NUM_REVIEWERS - numReviewersAlready;
 
@@ -121,8 +119,8 @@ async function openedPR(body) {
 
     // TODO: Handle it better if either fails
     const results = await Promise.all([
-      sendOpenedPrMessages(opener, users, body),
-      informOpener(opener, users, body.pull_request),
+      sendReviewRequestMessage(opener, users, body),
+      sendOpenerInitialStateMessage(opener, users, body.pull_request),
       requestReviewersAndAssignees(randomUsers, body),
     ]);
     logger.info(`[PR Opened] Opener: ${opener.name} Reviewers Messaged: ${users.map(user => user.name)}`);
@@ -191,48 +189,9 @@ async function prReviewed(body) {
   }
 }
 
-function verifySignature(body, givenAlgSig) {
-  try {
-    const hmac = crypto.createHmac('sha1', config.get('github_secret'));
-    const stringBody = JSON.stringify(body);
-    hmac.update(stringBody);
-    const calculatedSignature = hmac.digest('hex');
-    const [algorithm, givenSignature] = givenAlgSig.split('=');
-
-    const verified = algorithm === 'sha1' && calculatedSignature === givenSignature;
-    logger.info(`[Signature Verified] ${verified}`);
-    return verified;
-  } catch (e) {
-    logger.error(`[Signature verification Error] ${e}`);
-    return false;
-  }
-}
-
-// very simple router based on the action that occurred.
-async function routeIt(body, { signature }) {
-  if (!body.action) throw new Error('no Action');
-
-  // If we have signatures set up, best to check them
-  if (config.get('github_secret')) {
-    if (!verifySignature(body, signature)) {
-      logger.error('Signature Error. Body:');
-      logger.error(JSON.stringify(body, null, 2));
-      throw new Error('Signatures do not match!');
-    }
-  }
-  logger.info(`[RouteIt] ${body.action} on ${body.pull_request.base.repo.name}`);
-
-  try {
-    if (body.action === 'opened') return await openedPR(body);
-    if (body.action === 'submitted') return await prReviewed(body);
-  } catch (e) {
-    logger.error(e);
-    throw e;
-  }
-
-  logger.warn(`[RouteIt] No handler for: ${body.action} on ${body.pull_request.base.repo.name}`);
-  return Promise.reject('Unhandled action type');
-}
 module.exports = {
-  handle: routeIt,
+  pr: {
+    opened: prOpened,
+    reviewed: prReviewed,
+  },
 };
