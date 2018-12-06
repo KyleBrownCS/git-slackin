@@ -1,5 +1,7 @@
 const appRoot = require('app-root-path');
-const users = require(`${appRoot}/user_list.json`);
+const fs = require('fs');
+const userListFilePath = `${appRoot}/user_list.json`;
+const users = require(userListFilePath);
 
 // Randomly select <numUsers> github users that are not <notMe>
 async function selectRandomGithubUsersNot(notMe, numUsers = 1) {
@@ -50,6 +52,29 @@ async function listAllUsers() {
   return users;
 }
 
+async function benchUserBySlackId(id) {
+  users.map(user => {
+    if (user.slack.id === id) {
+      user.requestable = false;
+    }
+    return user;
+  });
+  fs.writeFileSync(userListFilePath, JSON.stringify(users, null, 2), 'utf-8');
+  return users;
+}
+
+async function activateUserBySlackId(id) {
+  users.map(user => {
+    if (user.slack.id === id) {
+      user.requestable = true;
+    }
+    return user;
+  });
+
+  fs.writeFileSync(userListFilePath, JSON.stringify(users, null, 2), 'utf-8');
+  return users;
+}
+
 module.exports = {
   selectRandomGithubUsersNot,
   findByGithubName,
@@ -57,4 +82,6 @@ module.exports = {
   listAllUsers,
   listBenchedUsers,
   listAvailableUsers,
+  benchUserBySlackId,
+  activateUserBySlackId,
 };
