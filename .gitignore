@@ -1,0 +1,12 @@
+# package directories
+node_modules
+jspm_packages
+
+
+# Config files
+config/*
+!config/example.json
+user_list.json
+
+# Logs
+*.log

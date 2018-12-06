@@ -1,0 +1,3 @@
+# Ignore built frontend files
+*.json
+*node_modules*

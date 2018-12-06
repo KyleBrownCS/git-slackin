@@ -1,0 +1,5 @@
+{
+  "github_token": "mygithubtoken",
+  "github_secret": "super secret",
+  "slack": "xoxp-a-slack-token"
+}
