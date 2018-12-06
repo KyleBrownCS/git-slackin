@@ -7,13 +7,15 @@ const logger = require('./logger');
 // My modules
 const githubWebhooks = require('./lib/github/webhookRouter');
 const slackAction = require('./lib/slack/actionHandlers');
-const slackEvents = require('./lib/slack/eventHandlers');
+const slackEventHandler = require('./lib/slack/eventHandlers');
 
 
 // Bootup message stuff
 const messenger = require('./lib/slack/message');
 const users = require('./lib/users');
 
+
+// Handle errors (see `errorCodes` export)
 async function generateAndSendBootMessage() {
   const availableUsers = await users.listAvailableUsers(true);
   const benchedUsers = await users.listBenchedUsers(true);
@@ -51,7 +53,7 @@ async function generateAndSendBootMessage() {
   };
 
   if (config.get('slack_manager_id')) {
-    return messenger.send(config.get('slack_manager_id'), messageObject);
+    return messenger.send(config.get('slack_manager_id'), messageObject, { force: true });
   } else {
     logger.info(`Available Users: ${availableUsersString}\nBenched Users: ${benchedUsersString}`);
   }
@@ -87,7 +89,7 @@ app.post('/slack/action', (req, res) => {
 });
 
 app.post('/slack/events', (req, res) => {
-  return slackEvents.route(req, res);
+  return slackEventHandler.route(req, res);
 });
 
 app.get('/', (req, res) => {

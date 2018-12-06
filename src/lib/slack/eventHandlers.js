@@ -19,7 +19,8 @@ async function handleDM(theEvent, res) {
   if (theEvent.text === 'STATUS') {
     const user = await findBySlackUserId(theEvent.user);
     res.sendStatus(200);
-    return sendToChannel(theEvent.channel, `You are <@${user.slack.id}> here and <https://github.com/${user.github}|@${user.github}> on GitHub.\n` +
+    return sendToChannel(theEvent.channel, `You are <@${user.slack.id}> here and ` +
+    `<https://github.com/${user.github}|@${user.github}> on GitHub.\n` +
     `Your current Git Slackin' status is: ${user.requestable ? 'Requestable' : 'Silenced'}.`);
   }
   return res.sendStatus(200);
