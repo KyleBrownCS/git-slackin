@@ -7,12 +7,7 @@ const logger = require('../../logger');
 const token = config.get('slack');
 const web = new WebClient(token);
 
-// TODO: Make smarter sendMessage functions
-// One for fields
-// One for basic
-// One for buttons
-// Actually send a message
-function sendMessage(conversationId, message) {
+function buildParams(conversationId, message) {
   if (typeof process.env.DEBUG === 'string') {
     logger.debug(`[DEBUG] conversationId: ${conversationId}, Message: ${message}`);
   }
@@ -32,7 +27,16 @@ function sendMessage(conversationId, message) {
   if (typeof process.env.DEBUG === 'string') {
     logger.debug(`[DEBUG] Message: ${JSON.stringify(params, null, 2)}`);
   }
+  return params;
+}
 
+// TODO: Make smarter sendMessage functions
+// One for fields
+// One for basic
+// One for buttons
+// Actually send a message
+function sendMessage(conversationId, message) {
+  const params = buildParams(conversationId, message);
   // See: https://api.slack.com/methods/chat.postMessage
   return web.chat.postMessage(params)
     .then((res) => {
@@ -42,6 +46,22 @@ function sendMessage(conversationId, message) {
     .catch(e => {
       logger.error(e);
       throw e;
+    });
+}
+
+function sendEphemeralMessage(conversationId, message) {
+  const params = buildParams(conversationId, message);
+
+  // See: https://api.slack.com/methods/chat.postMessage
+  return web.chat.postEphemeral(params)
+    .then((res) => {
+      logger.info(`[Messenger] Sent to ${conversationId}. Timestamp: ${res.ts}`);
+      return res;
+    })
+    .catch(e => {
+      logger.error('EPHEMERAL ERROR:');
+      logger.error(e);
+      // throw e;
     });
 }
 
@@ -65,10 +85,10 @@ async function silenced(user) {
 
 // have to find the DM channel ID, then send a message on that channel.
 // just using the user ID sends the message via @slackbot instead.
-async function sendDM(userId, message) {
+async function sendDM(userId, message, { force = false }) {
   const user = await findBySlackUserId(userId);
   const cannotSend = await silenced(user);
-  if (cannotSend) return logger.info(`[DM] Shh ${user.name} should not be bothered`);
+  if (cannotSend && !force) return logger.info(`[DM] Shh ${user.name} should not be bothered`);
 
   return openDM(userId)
     .then(dmChannelId => {
@@ -79,4 +99,6 @@ async function sendDM(userId, message) {
 
 module.exports = {
   send: sendDM,
+  sendToChannel: sendMessage,
+  sendEphemeralMessage,
 };
