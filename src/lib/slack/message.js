@@ -49,8 +49,9 @@ function sendMessage(conversationId, message) {
     });
 }
 
-function sendEphemeralMessage(conversationId, message) {
+function sendEphemeralMessage(conversationId, userId, message) {
   const params = buildParams(conversationId, message);
+  params.user = userId;
 
   // See: https://api.slack.com/methods/chat.postMessage
   return web.chat.postEphemeral(params)
@@ -85,7 +86,7 @@ async function silenced(user) {
 
 // have to find the DM channel ID, then send a message on that channel.
 // just using the user ID sends the message via @slackbot instead.
-async function sendDM(userId, message, { force = false }) {
+async function sendDM(userId, message, { force = false } = {}) {
   const user = await findBySlackUserId(userId);
   const cannotSend = await silenced(user);
   if (cannotSend && !force) return logger.info(`[DM] Shh ${user.name} should not be bothered`);
