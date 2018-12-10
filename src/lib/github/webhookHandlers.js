@@ -51,7 +51,9 @@ async function sendOpenerInitialStateMessage(opener, reviewers, prObj) {
   const conversationId = opener.slack.id;
   const reviewersNames = reviewers.map(user => `<@${user.slack.id}>`);
   const message = `You opened <${prObj.html_url}|PR #${prObj.number}> ` +
-  `\`${prObj.title.replace('`', '\\`')}\`, on ${prObj.base.repo.name}. Here's the Review Status:`;
+  `\`${prObj.title.replace('`', '\\`')}\`, on ${prObj.base.repo.name}.\n` +
+  ':spiral_note_pad: If you\'re in the office :office: today, give these people Post-Its!\n' +
+  '(If you\'re working remote :house:, don\'t worry. I\'ll still send them a message.):';
 
   const msgObj = {
     text: message,
@@ -104,6 +106,12 @@ async function prOpened(body) {
   try {
     // TODO: Have findByGithubName fail better if it can't find the person
     const opener = await findByGithubName(body.pull_request.user.login);
+    const wipRegex = /^\[*\s*WIP\s*\]*\s+/gi;
+    if (wipRegex.test(body.pull_request.title)) {
+      send(opener,
+        `Are you sure you meant to open PR <${body.pull_request.html_url}|${body.pull_request.title}>? ` +
+        'You marked it Work in Progress. So I will ignore it');
+    }
 
     // NOTE: This uses assignees because requested reviewers come back in separate events
     const numReviewersAlready = body.pull_request.assignees.length;
