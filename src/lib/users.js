@@ -1,6 +1,7 @@
 const appRoot = require('app-root-path');
 const fs = require('fs');
 const userListFilePath = `${appRoot}/user_list.json`;
+const logger = require('../logger');
 const users = require(userListFilePath);
 
 // Randomly select <numUsers> github users that are not <notMe>
@@ -60,6 +61,7 @@ async function benchUserBySlackId(id) {
     return user;
   });
   fs.writeFileSync(userListFilePath, JSON.stringify(users, null, 2), 'utf-8');
+  logger.info('[USERS] Update user_list file');
   return users;
 }
 
@@ -72,6 +74,7 @@ async function activateUserBySlackId(id) {
   });
 
   fs.writeFileSync(userListFilePath, JSON.stringify(users, null, 2), 'utf-8');
+  logger.info('[USERS] Update user_list file');
   return users;
 }
 
