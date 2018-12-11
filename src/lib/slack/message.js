@@ -102,4 +102,5 @@ module.exports = {
   send: sendDM,
   sendToChannel: sendMessage,
   sendEphemeralMessage,
+  openDM,
 };

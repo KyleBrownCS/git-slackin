@@ -4,6 +4,11 @@ const userListFilePath = `${appRoot}/user_list.json`;
 const logger = require('../logger');
 const users = require(userListFilePath);
 
+async function synchronizeUserList() {
+  logger.info('[USERS] Update user_list file, writing to file.');
+  return fs.writeFileSync(userListFilePath, JSON.stringify(users, null, 2), 'utf-8');
+}
+
 // Randomly select <numUsers> github users that are not <notMe>
 async function selectRandomGithubUsersNot(notMe, numUsers = 1) {
   const usersToReturn = [];
@@ -60,10 +65,11 @@ async function benchUserBySlackId(id) {
     }
     return user;
   });
-  fs.writeFileSync(userListFilePath, JSON.stringify(users, null, 2), 'utf-8');
+  await synchronizeUserList();
   logger.info('[USERS] Update user_list file');
   return users;
 }
+
 
 async function activateUserBySlackId(id) {
   users.map(user => {
@@ -72,10 +78,23 @@ async function activateUserBySlackId(id) {
     }
     return user;
   });
-
-  fs.writeFileSync(userListFilePath, JSON.stringify(users, null, 2), 'utf-8');
-  logger.info('[USERS] Update user_list file');
+  await synchronizeUserList();
   return users;
+}
+
+async function listAllUserNamesByAvailability() {
+  const availableUsers = await listAvailableUsers(true);
+  const benchedUsers = await listBenchedUsers(true);
+
+  let availableUsersString = availableUsers.join();
+  let benchedUsersString = benchedUsers.join();
+  if (availableUsersString.length === 0) availableUsersString = 'None';
+  if (benchedUsersString.length === 0) benchedUsersString = 'None';
+
+  return {
+    available: availableUsersString,
+    benched: benchedUsersString,
+  };
 }
 
 module.exports = {
@@ -83,6 +102,7 @@ module.exports = {
   findByGithubName,
   findBySlackUserId,
   listAllUsers,
+  listAllUserNamesByAvailability,
   listBenchedUsers,
   listAvailableUsers,
   benchUserBySlackId,

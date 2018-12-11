@@ -1,9 +1,30 @@
 const logger = require('../../logger');
+const config = require('config');
+const common = require('./common');
 const { sendToChannel, sendEphemeralMessage } = require('./message');
 const { benchUserBySlackId, activateUserBySlackId, findBySlackUserId } = require('../users');
 
 function challenge(req, res, next) {
   return res.send(req.body.challenge);
+}
+
+async function handleAdminCommands(command, theEvent, res) {
+  if (!config.get('slack_manager_id') || config.get('slack_manager_id') !== theEvent.user) {
+    return sendEphemeralMessage(theEvent.channel, theEvent.user, 'This command is Admin-only ');
+  }
+
+  if (command === 'overview') {
+    logger.info(`[DM Event] ${theEvent.user} requested all users status`);
+    return common.generateAndSendBootMessage(theEvent.channel);
+  }
+
+  if (command === 'shutdown') {
+    logger.info(`[ADMIN Event] ${theEvent.uesr} requested shutdown`);
+    return sendToChannel(theEvent.channel, 'Shutting down!')
+      .then(() => {
+        return process.exit(0);
+      });
+  }
 }
 
 async function handleDM(theEvent, res) {
@@ -40,6 +61,8 @@ async function handleDM(theEvent, res) {
   if (prplsRegex.test(smallText)) {
     return sendToChannel(theEvent.channel, 'Sorry, I cannot currently add more reviewers');
   }
+
+  return handleAdminCommands(smallText, theEvent, res);
 }
 
 function verify() {
@@ -65,7 +88,7 @@ function route(req, res, next) {
     return handleDM(req.body.event, res);
   }
 
-  logger.warn('Event not handled');
+  logger.warn(`Event ${req.body.event.type} not handled`);
   return res.sendStatus(200);
 }
 

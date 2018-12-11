@@ -8,60 +8,23 @@ const logger = require('./logger');
 const githubWebhooks = require('./lib/github/webhookRouter');
 const slackAction = require('./lib/slack/actionHandlers');
 const slackEventHandler = require('./lib/slack/eventHandlers');
-
-
+const slackCommon = require('./lib/slack/common');
+const { openDM } = require('./lib/slack/message');
 // Bootup message stuff
-const messenger = require('./lib/slack/message');
-const users = require('./lib/users');
-
 
 // Handle errors (see `errorCodes` export)
-async function generateAndSendBootMessage() {
-  const availableUsers = await users.listAvailableUsers(true);
-  const benchedUsers = await users.listBenchedUsers(true);
 
-  let availableUsersString = availableUsers.join();
-  let benchedUsersString = benchedUsers.join();
-  if (availableUsersString.length === 0) availableUsersString = 'None';
-  if (benchedUsersString.length === 0) benchedUsersString = 'None';
-
-  logger.info('[BOOT] Sending bootup messages');
-  const messageObject = {
-    text: 'Git Slackin: ONLINE',
-    attachments: [
-      {
-        text: '',
-        color: 'good',
-        fields: [
-          {
-            title: 'Available Users',
-            value: availableUsersString,
-          },
-        ],
-      },
-      {
-        text: '',
-        color: 'warning',
-        fields: [
-          {
-            title: 'Benched Users',
-            value: benchedUsersString,
-          },
-        ],
-      },
-    ],
-  };
-
-  if (config.get('slack_manager_id')) {
-    return messenger.send(config.get('slack_manager_id'), messageObject, { force: true });
-  } else {
-    logger.info(`Available Users: ${availableUsersString}\nBenched Users: ${benchedUsersString}`);
-  }
-}
 
 // could put logic around this.
 if (!process.env.GS_SILENT) {
-  generateAndSendBootMessage();
+  logger.info('[BOOT] Starting up...');
+  if (config.get('slack_manager_id')) {
+    openDM(config.get('slack_manager_id'))
+      .then(dmChannelId => slackCommon.generateAndSendBootMessage(dmChannelId));
+  } else {
+    logger.warn('[BOOT] No channel listed for bootup message.');
+  }
+  slackCommon.generateAndSendBootMessage('CD6QA5K1N');
 } else {
   logger.info('[BOOT] Silent.');
 }
