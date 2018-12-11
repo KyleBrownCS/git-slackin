@@ -16,7 +16,9 @@ octokit.authenticate({
 });
 
 function sendReviewRequestMessage(opener, users, body) {
-  const messagesQueue = users.map(user => {
+  let theUsers = users;
+  if (!Array.isArray(theUsers)) theUsers = [theUsers];
+  const messagesQueue = theUsers.map(user => {
     logger.info(`Send to ${user.name}`);
     const conversationId = user.slack.id;
 
@@ -100,6 +102,12 @@ async function requestReviewersAndAssignees(users, body) {
   }
 }
 
+async function reviewRequested(body) {
+  const opener = await findByGithubName(body.pull_request.user.login);
+  const requestedReviewer = await findByGithubName(body.requested_reviewer.login);
+  return await sendReviewRequestMessage(opener, requestedReviewer, body);
+}
+
 // Handle everything we want to do about opening a PR.
 // v1: randomly pick 2 users and send them links on Slack
 async function prOpened(body) {
@@ -127,7 +135,6 @@ async function prOpened(body) {
 
     // TODO: Handle it better if either fails
     const results = await Promise.all([
-      sendReviewRequestMessage(opener, users, body),
       sendOpenerInitialStateMessage(opener, users, body.pull_request),
       requestReviewersAndAssignees(randomUsers, body),
     ]);
@@ -201,5 +208,6 @@ module.exports = {
   pr: {
     opened: prOpened,
     reviewed: prReviewed,
+    reviewRequested: reviewRequested,
   },
 };
