@@ -22,15 +22,18 @@ Features and commands listed below
 
 ## Current Features
 
+* Announces itself to admin and channel (if provided)
 * Request reviews and send messages when opening a PR
   * Git-slackin will pick 2 random, requestable users from the `user_list.json`
   * Assigns them and requests a review from them on Github (_Note:_ These actions happen on the behalf of the user whose personal access token is in the config)
   * Notifies the requested reviewers via a DM with a link to the PR
+    * This happens if someone uses the Github UI to request a review as well.
   * Notifies the PR Opener who has been requested
-  * If you add assignees to the PR before opening the number of randomly requested users will decrease
 * Get notified when your PR is reviewd
   * Git-Slackin will message the opener of the PR informing them of who submitted a review, and in what state (approved, commented, requested changes)
 * Don't bother people when then are not requestable
+* Allow users to change their requestability
+* Respond to some DM commands
 
 ## Commands (via Slack DMs)
 
