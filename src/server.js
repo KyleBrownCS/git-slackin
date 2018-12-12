@@ -22,9 +22,14 @@ if (!process.env.GS_SILENT) {
     openDM(config.get('slack_manager_id'))
       .then(dmChannelId => slackCommon.generateAndSendBootMessage(dmChannelId));
   } else {
-    logger.warn('[BOOT] No channel listed for bootup message.');
+    logger.warn('[BOOT] No admin user listed for bootup message.');
   }
-  slackCommon.generateAndSendBootMessage('CD6QA5K1N');
+
+  if (config.get('slack_announce_channel_id')) {
+    slackCommon.generateAndSendBootMessage(config.get('slack_announce_channel_id'));
+  } else {
+    logger.info('[BOOT] No channel listed for bootup message.');
+  }
 } else {
   logger.info('[BOOT] Silent.');
 }
