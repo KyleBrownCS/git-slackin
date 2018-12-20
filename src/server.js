@@ -36,11 +36,13 @@ if (!process.env.GS_SILENT) {
 // end bootup message stuff
 
 app.use(bodyParser.json());
+app.use(bodyParser.urlEncoded());
 
 // Basic web server to handle payloads
 app.post('/payload', (req, res) => {
   if (req.headers['x-github-event'] === 'pull_request' ||
-  req.headers['x-github-event'] === 'pull_request_review') {
+  req.headers['x-github-event'] === 'pull_request_review' ||
+  req.headers['x-github-event'] === 'pull_request_review_comment') {
     return githubWebhooks.handle(req.body, { signature: req.headers['x-hub-signature'] })
       .then(() => res.sendStatus(200))
       .catch((msg = 'Not supported') => res.status(500).send(msg));
