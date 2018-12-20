@@ -8,6 +8,25 @@ function challenge(req, res, next) {
   return res.send(req.body.challenge);
 }
 
+const appRoot = require('app-root-path');
+const simpleGit = require('simple-git')(appRoot);
+
+async function updateGitSlackin(theEvent) {
+  let updateResult = null;
+  try {
+    updateResult = await simpleGit.pull();
+  } catch (e) {
+    return sendEphemeralMessage(theEvent.challenge, theEvent.user.slack, `Update failed. Error: ${e}`);
+  }
+
+  return sendToChannel(theEvent.channel, `Update trigger by ${theEvent.user.name}. Be back shortly! :wave:\n` +
+  `Changes: ${updateResult}`)
+    .then(() => {
+      // this works since we've already pulled so restarting should work.
+      return process.exit(0);
+    });
+}
+
 async function handleAdminCommands(command, theEvent, res) {
   if (!config.get('slack_manager_id') || config.get('slack_manager_id') !== theEvent.user) {
     return sendEphemeralMessage(theEvent.channel, theEvent.user, 'This command is Admin-only ');
@@ -16,6 +35,11 @@ async function handleAdminCommands(command, theEvent, res) {
   if (command === 'overview') {
     logger.info(`[DM Event] ${theEvent.user} requested all users status`);
     return common.generateAndSendBootMessage(theEvent.channel);
+  }
+
+  if (command === 'update') {
+    logger.info(`[DM Event] ${theEvent.user} is updating to the latest version`);
+    return await updateGitSlackin(theEvent);
   }
 
   if (command === 'shutdown') {
