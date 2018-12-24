@@ -22,7 +22,7 @@ if (config.get('slack_manager_id')) {
   logger.warn('[BOOT] No admin user listed for bootup message.');
 }
 // silent just means it won't announce it to the entire team every time.
-if (process.env.GS_SILENT || (config.has('silent_boot') && config.get('silent_boot') === true)) {
+if (process.env.GS_SILENT || config.get('silent_boot') === true) {
   logger.info('[BOOT] Silent.');
 } else {
   logger.info('[BOOT] Starting up...');
