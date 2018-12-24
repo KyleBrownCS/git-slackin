@@ -32,12 +32,12 @@ async function selectRandomGithubUsersNot(notMe, numUsers = 1) {
 
 // Look up a single user quickly
 async function findByGithubName(name) {
-  return users.find(element => element.github === name);
+  return users.find(element => element.github.toLowerCase() === name.toLowerCase());
 }
 
 // Look up a single user quickly
 async function findBySlackUserId(slackId) {
-  return users.find(element => element.slack.id === slackId);
+  return users.find(element => element.slack.id.toLowerCase() === slackId.toLowerCase());
 }
 
 async function listBenchedUsers(onlyNames = false) {
@@ -60,7 +60,7 @@ async function listAllUsers() {
 
 async function benchUserBySlackId(id) {
   users.map(user => {
-    if (user.slack.id === id) {
+    if (user.slack.id.toLowerCase() === id.toLowerCase()) {
       user.requestable = false;
     }
     return user;
@@ -73,7 +73,7 @@ async function benchUserBySlackId(id) {
 
 async function activateUserBySlackId(id) {
   users.map(user => {
-    if (user.slack.id === id) {
+    if (user.slack.id.toLowerCase() === id.toLowerCase()) {
       user.requestable = true;
     }
     return user;
