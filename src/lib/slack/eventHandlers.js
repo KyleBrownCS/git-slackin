@@ -76,7 +76,7 @@ async function handleAdminCommands(command, theEvent, res) {
     return common.generateAndSendBootMessage(theEvent.channel);
   }
 
-  const benchRegexResult = /bench @(\w+)/gi.exec(command);
+  const benchRegexResult = /bench <@(\w+)/gi.exec(command);
   if (benchRegexResult && benchRegexResult.length > 1) {
     const slackUserIdToBench = benchRegexResult[1];
     await benchUserBySlackId(slackUserIdToBench);
