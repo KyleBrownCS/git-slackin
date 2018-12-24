@@ -17,8 +17,11 @@ const simpleGit = require('simple-git')(appRoot.path);
 
 async function updateGitSlackin(theEvent) {
   let updateResult = null;
+  const branch = 'master';
   try {
-    updateResult = await simpleGit.pull();
+    updateResult = await simpleGit.pull('origin', branch,
+      { '--strategy': 'recursive',
+        '--strategy-option': 'theirs' });
   } catch (e) {
     return sendEphemeralMessage(theEvent.challenge, theEvent.user.slack, `Update failed. Error: ${e}`);
   }
