@@ -3,13 +3,21 @@ const config = require('config');
 const common = require('./common');
 const { sendToChannel, sendEphemeralMessage, send } = require('./message');
 const { benchUserBySlackId, activateUserBySlackId, findBySlackUserId } = require('../users');
+const appRoot = require('app-root-path');
+const fs = require('fs');
+const configFile = `${appRoot}/config/development.json`;
+const configuration = require(configFile);
+const simpleGit = require('simple-git')(appRoot.path);
 
 function challenge(req, res, next) {
   return res.send(req.body.challenge);
 }
 
-const appRoot = require('app-root-path');
-const simpleGit = require('simple-git')(appRoot.path);
+
+async function updateConfigurations(configOverrides) {
+  const mergedConfigs = Object.assign(configuration, configOverrides);
+  return fs.writeFileSync(configFile, JSON.stringify(mergedConfigs, null, 2), 'utf-8');
+}
 
 // TODO: Fix this error
 //Git#then is deprecated after version 1.72 and will be removed in version 2.x
@@ -26,7 +34,8 @@ async function updateGitSlackin(theEvent) {
     return sendEphemeralMessage(theEvent.challenge, theEvent.user.slack, `Update failed. Error: ${e}`);
   }
 
-  return sendToChannel(theEvent.channel, `Update trigger by ${theEvent.user.name}. Be back shortly! :wave:\n` +
+  const triggeringUser = await findBySlackUserId(theEvent.user);
+  return sendToChannel(theEvent.channel, `Update trigger by ${triggeringUser.name}. Be back shortly! :wave:\n` +
   `Changes: ${updateResult}`)
     .then(() => {
       // this works since we've already pulled so restarting should work.
@@ -48,14 +57,28 @@ async function handleAdminCommands(command, theEvent, res) {
     return sendEphemeralMessage(theEvent.channel, theEvent.user, JSON.stringify(configuration));
   }
 
+  const setConfigRegexRestult = /^config set (.+)$/.exec(command);
+  if (setConfigRegexRestult && setConfigRegexRestult.length > 1) {
+    try {
+      const newConfig = JSON.parse(setConfigRegexRestult[1]);
+      await updateConfigurations(newConfig);
+      return await sendToChannel(theEvent.channel, 'Updated config, restarting Git Slackin...')
+        .then(() => {
+          return process.exit(0);
+        });
+    } catch (e) {
+      return sendEphemeralMessage(theEvent.channel, theEvent.user, 'Error updating configuration');
+    }
+  }
+
   if (command === 'overview') {
     logger.info(`[DM Event] ${theEvent.user} requested all users status`);
     return common.generateAndSendBootMessage(theEvent.channel);
   }
 
-  const regexResult = /bench @(\w+)/gi.exec(command);
-  if (regexResult.length > 1) {
-    const slackUserIdToBench = regexResult[1];
+  const benchRegexResult = /bench @(\w+)/gi.exec(command);
+  if (benchRegexResult && benchRegexResult.length > 1) {
+    const slackUserIdToBench = benchRegexResult[1];
     await benchUserBySlackId(slackUserIdToBench);
     send(slackUserIdToBench, `You have been benched by ${theEvent.user}. ` +
     'Send me, Git Slackin, `start` to start receiving Review Requests again.');
@@ -69,7 +92,7 @@ async function handleAdminCommands(command, theEvent, res) {
   }
 
   if (command === 'shutdown') {
-    logger.info(`[ADMIN Event] ${theEvent.uesr} requested shutdown`);
+    logger.info(`[ADMIN Event] ${theEvent.user} requested shutdown`);
     return sendToChannel(theEvent.channel, 'Shutting down!')
       .then(() => {
         return process.exit(0);
