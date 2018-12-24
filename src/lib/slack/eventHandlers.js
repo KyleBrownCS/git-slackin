@@ -37,16 +37,21 @@ async function handleAdminCommands(command, theEvent, res) {
     return common.generateAndSendBootMessage(theEvent.channel);
   }
 
-  const benchUserRegex = /bench <@(\w+)>/gi; // new RegExp('bench <@\w+>', 'i');
+  const benchUserRegex = /bench <@(\w+)>/gi;
 
   if (benchUserRegex.test(command)) {
     const regexResult = benchUserRegex.exec(command);
-    if (!regexResult || regexResult.length < 2) return logger.warn('No user found');
+    if (!regexResult || regexResult.length < 2) {
+      sendEphemeralMessage(theEvent.channel, theEvent.user,
+        `Error with regex. Results: ${JSON.stringifyregexResult}`);
+      return logger.warn('No user found');
+    }
     const slackUserIdToBench = regexResult[1];
     await benchUserBySlackId(slackUserIdToBench);
-    send(slackUserIdToBench, `You have been benched by ${theEvent.user}. ` +
+    await send(slackUserIdToBench, `You have been benched by ${theEvent.user}. ` +
     'Send me, Git Slackin, `start` to start receiving Review Requests again.');
-    sendEphemeralMessage(theEvent.channel, theEvent.user, `I have benched <@${slackUserIdToBench}> as requested.`);
+    return await sendEphemeralMessage(theEvent.channel, theEvent.user,
+      `I have benched <@${slackUserIdToBench}> as requested.`);
   }
 
   if (command === 'update') {
