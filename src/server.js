@@ -36,7 +36,7 @@ if (!process.env.GS_SILENT) {
 // end bootup message stuff
 
 app.use(bodyParser.json());
-app.use(bodyParser.urlEncoded());
+app.use(bodyParser.urlencoded());
 
 // Basic web server to handle payloads
 app.post('/payload', (req, res) => {
