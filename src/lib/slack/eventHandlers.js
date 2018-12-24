@@ -1,7 +1,7 @@
 const logger = require('../../logger');
 const config = require('config');
 const common = require('./common');
-const { sendToChannel, sendEphemeralMessage } = require('./message');
+const { sendToChannel, sendEphemeralMessage, send } = require('./message');
 const { benchUserBySlackId, activateUserBySlackId, findBySlackUserId } = require('../users');
 
 function challenge(req, res, next) {
@@ -35,6 +35,18 @@ async function handleAdminCommands(command, theEvent, res) {
   if (command === 'overview') {
     logger.info(`[DM Event] ${theEvent.user} requested all users status`);
     return common.generateAndSendBootMessage(theEvent.channel);
+  }
+
+  const benchUserRegex = /bench <@(\w+)>/gi; // new RegExp('bench <@\w+>', 'i');
+
+  if (benchUserRegex.test(command)) {
+    const regexResult = benchUserRegex.exec(command);
+    if (!regexResult || regexResult.length < 2) return logger.warn('No user found');
+    const slackUserIdToBench = regexResult[1];
+    await benchUserBySlackId(slackUserIdToBench);
+    send(slackUserIdToBench, `You have been benched by ${theEvent.user}. ` +
+    'Send me, Git Slackin, `start` to start receiving Review Requests again.');
+    sendEphemeralMessage(theEvent.channel, theEvent.user, `I have benched <@${slackUserIdToBench}> as requested.`);
   }
 
   if (command === 'update') {
@@ -81,7 +93,8 @@ async function handleCommands(text, theEvent, res) {
     '`status` -- get your current status/info that git slackin has about you');
   }
 
-  const prplsRegex = new RegExp('^(prpls) (https://github.com/NewVistas/([\\w-])+/pull/(\\d)+)', 'i');
+  // Looks for PR form
+  const prplsRegex = new RegExp('^(prpls) (<https://github.com/\\w+/([\\w])+/pull/(\\d)+>)', 'i');
   if (prplsRegex.test(smallText)) {
     return sendEphemeralMessage(theEvent.channel, theEvent.user, 'Sorry, I cannot currently add more reviewers');
   }
@@ -121,7 +134,7 @@ function route(req, res, next) {
   if (req.body.event.type === 'app_mention') {
     const mentions = /^<@\w+> (.+)$/g;
     const matches = mentions.exec(req.body.event.text);
-    if (matches.length >= 2) {
+    if (matches && matches.length >= 2) {
       return handleCommands(matches[1], req.body.event, res);
     } else {
       logger.warn('App_mention did not split nicely');
