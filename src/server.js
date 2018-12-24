@@ -16,7 +16,9 @@ const { openDM } = require('./lib/slack/message');
 
 
 // could put logic around this.
-if (!process.env.GS_SILENT || (config.has('silent_boot') && config.get('silent_boot') === true)) {
+if (process.env.GS_SILENT || (config.has('silent_boot') && config.get('silent_boot') === true)) {
+  logger.info('[BOOT] Silent.');
+} else {
   logger.info('[BOOT] Starting up...');
   if (config.get('slack_manager_id')) {
     openDM(config.get('slack_manager_id'))
@@ -30,8 +32,6 @@ if (!process.env.GS_SILENT || (config.has('silent_boot') && config.get('silent_b
   } else {
     logger.info('[BOOT] No channel listed for bootup message.');
   }
-} else {
-  logger.info('[BOOT] Silent.');
 }
 // end bootup message stuff
 
