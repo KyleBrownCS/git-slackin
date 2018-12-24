@@ -15,17 +15,17 @@ const { openDM } = require('./lib/slack/message');
 // Handle errors (see `errorCodes` export)
 
 
-// could put logic around this.
+// silent just means it won't announce it to the entire team every time.
 if (process.env.GS_SILENT || (config.has('silent_boot') && config.get('silent_boot') === true)) {
   logger.info('[BOOT] Silent.');
-} else {
-  logger.info('[BOOT] Starting up...');
   if (config.get('slack_manager_id')) {
     openDM(config.get('slack_manager_id'))
       .then(dmChannelId => slackCommon.generateAndSendBootMessage(dmChannelId));
   } else {
     logger.warn('[BOOT] No admin user listed for bootup message.');
   }
+} else {
+  logger.info('[BOOT] Starting up...');
 
   if (config.get('slack_announce_channel_id')) {
     slackCommon.generateAndSendBootMessage(config.get('slack_announce_channel_id'));
