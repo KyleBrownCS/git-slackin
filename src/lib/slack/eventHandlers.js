@@ -53,7 +53,7 @@ async function handleAdminCommands(command, theEvent, res) {
     return sendToChannel(theEvent.channel, `\`\`\`${command}\n${JSON.stringify(theEvent)}\`\`\``);
   }
 
-  if (/^config/.test(command)) {
+  if (/^config$/.test(command)) {
     return sendEphemeralMessage(theEvent.channel, theEvent.user, JSON.stringify(configuration));
   }
 
