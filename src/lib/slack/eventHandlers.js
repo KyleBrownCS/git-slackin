@@ -44,15 +44,17 @@ async function handleAdminCommands(command, theEvent, res) {
     return sendToChannel(theEvent.channel, `\`\`\`${command}\n${JSON.stringify(theEvent)}\`\`\``);
   }
 
+  if (/^config/.test(command)) {
+    return sendEphemeralMessage(theEvent.channel, theEvent.user, JSON.stringify(configuration));
+  }
+
   if (command === 'overview') {
     logger.info(`[DM Event] ${theEvent.user} requested all users status`);
     return common.generateAndSendBootMessage(theEvent.channel);
   }
 
-  const benchUserRegex = /bench @(\w+)/gi;
-  if (benchUserRegex.test(command)) {
-    const regexResult = benchUserRegex.exec(command);
-    if (!regexResult || regexResult.length < 2) return logger.warn('No user found');
+  const regexResult = /bench @(\w+)/gi.exec(command);
+  if (regexResult.length > 1) {
     const slackUserIdToBench = regexResult[1];
     await benchUserBySlackId(slackUserIdToBench);
     send(slackUserIdToBench, `You have been benched by ${theEvent.user}. ` +

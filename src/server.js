@@ -16,7 +16,7 @@ const { openDM } = require('./lib/slack/message');
 
 
 // could put logic around this.
-if (!process.env.GS_SILENT) {
+if (!process.env.GS_SILENT || (config.has('silent_boot') && config.get('silent_boot') === true)) {
   logger.info('[BOOT] Starting up...');
   if (config.get('slack_manager_id')) {
     openDM(config.get('slack_manager_id'))
