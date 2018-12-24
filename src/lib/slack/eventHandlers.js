@@ -39,12 +39,17 @@ async function handleAdminCommands(command, theEvent, res) {
     return sendEphemeralMessage(theEvent.channel, theEvent.user, 'This command is Admin-only ');
   }
 
+  if (/^echo/.test(command)) {
+    logger.info('[Admin] echo requested');
+    return sendToChannel(theEvent.channel, `\`\`\`${command}\n${JSON.stringify(theEvent)}\`\`\``);
+  }
+
   if (command === 'overview') {
     logger.info(`[DM Event] ${theEvent.user} requested all users status`);
     return common.generateAndSendBootMessage(theEvent.channel);
   }
 
-  const benchUserRegex = /bench <@(\w+)>/gi; // new RegExp('bench <@\w+>', 'i');
+  const benchUserRegex = /bench <@(\w+)>/gi;
 
   if (benchUserRegex.test(command)) {
     const regexResult = benchUserRegex.exec(command);
