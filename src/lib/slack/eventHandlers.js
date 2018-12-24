@@ -9,7 +9,11 @@ function challenge(req, res, next) {
 }
 
 const appRoot = require('app-root-path');
-const simpleGit = require('simple-git')(appRoot);
+const simpleGit = require('simple-git')(appRoot.path);
+
+// TODO: Fix this error
+//Git#then is deprecated after version 1.72 and will be removed in version 2.x
+//Please switch to using Git#exec to run arbitrary functions as part of the command chain.
 
 async function updateGitSlackin(theEvent) {
   let updateResult = null;
