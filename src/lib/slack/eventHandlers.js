@@ -79,6 +79,8 @@ async function handleAdminCommands(command, theEvent, res) {
   if (/^bench/.test(command)) {
     const userMentions = /<@(\w+)>/gi.exec(command);
     const slackUserIdToBench = userMentions[1];
+    await sendEphemeralMessage(theEvent.channel, theEvent.user,
+      `Looks like you're benching someone ${userMentions}. id: ${slackUserIdToBench}`);
     await benchUserBySlackId(slackUserIdToBench);
     send(slackUserIdToBench, `You have been benched by ${theEvent.user}. ` +
     'Send me, Git Slackin, `start` to start receiving Review Requests again.');
