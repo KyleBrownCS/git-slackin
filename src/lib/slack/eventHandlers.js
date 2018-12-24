@@ -49,7 +49,7 @@ async function handleAdminCommands(command, theEvent, res) {
     return common.generateAndSendBootMessage(theEvent.channel);
   }
 
-  const benchUserRegex = /bench <@(\w+)>/gi;
+  const benchUserRegex = /bench @(\w+)/gi;
 
   if (benchUserRegex.test(command)) {
     const regexResult = benchUserRegex.exec(command);
