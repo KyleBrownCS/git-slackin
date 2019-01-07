@@ -1,14 +1,14 @@
 const appRoot = require('app-root-path');
 const logger = require('../../logger');
 const messenger = require('./message');
-const simpleGit = require('simple-git')(appRoot.path);
+const simpleGit = require('simple-git/promise')(appRoot.path);
 const users = require('../users');
 
 async function generateAndSendBootMessage(channel = null, { msgText = null } = {}) {
   const { available, benched } = await users.listAllUserNamesByAvailability();
   const SHA = await simpleGit.revparse(['HEAD']);
   const messageObject = {
-    text: msgText || `Git Slackin: ONLINE. SHA \`${SHA}\``,
+    text: msgText || `Git Slackin: ONLINE. SHA \`${SHA.trim()}\``,
     attachments: [
       {
         text: '',
