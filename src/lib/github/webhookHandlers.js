@@ -29,12 +29,12 @@ function sendReviewRequestMessage(opener, users, body) {
       text: message,
       attachments: [
         {
-          text: 'Test button please ignore',
+          text: 'Hacky workaround will remove message',
           callback_id: 'ISetACallbackId',
           actions: [
             {
               name: 'todo',
-              text: 'Do not touch',
+              text: 'Remove',
               type: 'button',
               value: 'testValue',
             },
