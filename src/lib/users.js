@@ -58,6 +58,10 @@ async function listAllUsers() {
   return users;
 }
 
+async function filterUsers({ prop, val }) {
+  return users.filter(user => user[prop] && user[prop] === val);
+}
+
 async function benchUserBySlackId(id) {
   users.map(user => {
     if (user.slack.id.toLowerCase() === id.toLowerCase()) {
@@ -101,6 +105,7 @@ module.exports = {
   selectRandomGithubUsersNot,
   findByGithubName,
   findBySlackUserId,
+  filterUsers,
   listAllUsers,
   listAllUserNamesByAvailability,
   listBenchedUsers,

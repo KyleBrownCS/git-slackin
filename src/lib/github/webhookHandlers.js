@@ -3,7 +3,7 @@ const config = require('config');
 
 // My Modules
 const logger = require('../../logger');
-const { selectRandomGithubUsersNot, findByGithubName } = require('../users');
+const { selectRandomGithubUsersNot, findByGithubName, filterUsers } = require('../users');
 const { send } = require('../slack/message');
 
 // Number of reviewers required for our workflow. Could move to config eventually.
@@ -146,6 +146,35 @@ async function prOpened(body) {
   }
 }
 
+async function notifyMergers(msg) {
+  const mergers = await filterUsers({ prop: 'merger', val: true });
+  const promises = mergers.map(user => send(user.slack.id, msg));
+  return await Promise.all(promises);
+}
+
+// Check if the PR is all approved by the right number of people
+async function checkForReviews({ owner, repo, number }) {
+  // grab all the reviews (listed chronologically)
+  const allReviews = await octokit.pullRequests.listReviews({ owner, repo, number });
+
+  const latestReviewByUser = {};
+  let APPROVED = 0;
+  let CHANGES_REQUESTED = 0;
+
+  // get the latest (these are chronologically ordered)
+  allReviews.data.forEach(review => latestReviewByUser[review.user.login] = review.state);
+
+  // Count instances of each state. Maybe this could be optimized later. Don't optimize too early though!
+  Object.keys(latestReviewByUser).forEach(reviewer => {
+    const state = latestReviewByUser[reviewer];
+    if (state === 'APPROVED') APPROVED++;
+    if (state === 'CHANGES_REQUESTED') CHANGES_REQUESTED++;
+  });
+
+  logger.info(`Reviewer check: ${APPROVED} approved and ${CHANGES_REQUESTED} changes requested`);
+  return APPROVED >= NUM_REVIEWERS && CHANGES_REQUESTED < 1;
+}
+
 // TODO: Implement multiple modes "react" and "respond".
 // React will just react to the message about opening the PR
 // Respond will send a new message
@@ -197,7 +226,19 @@ async function prReviewed(body) {
   `Sending opener (${coder.name}, id ${coder.slack.id}) a message...`);
 
   try {
-    return await send(coder.slack.id, message);
+    // let coder know its been done
+    await send(coder.slack.id, message);
+    const shouldNotify = await checkForReviews({
+      owner: body.repository.owner.login,
+      repo: body.repository.name,
+      number: body.pull_request.number });
+
+    if (shouldNotify) {
+      const mergerMessage =
+      `<${body.review.html_url}|${body.pull_request.base.repo.name} PR #${body.pull_request.number}>: ` +
+      `\`${body.pull_request.title}\` has enough reviewers!`;
+      return await notifyMergers(mergerMessage);
+    }
   } catch (e) {
     logger.error(`[PR Reviewed] Error: ${e}`);
     throw new Error(e);
