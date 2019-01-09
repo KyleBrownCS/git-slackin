@@ -82,15 +82,25 @@ async function handleAdminCommands(command, theEvent, res) {
   }
 
   if (/^bench/.test(command)) {
-    const userMentions = /<@(\w+)>/gi.exec(command);
-    const slackUserIdToBench = userMentions[1];
-    await sendEphemeralMessage(theEvent.channel, theEvent.user,
-      `Looks like you're benching someone ${userMentions}. id: ${slackUserIdToBench}`);
+    const slackUserIdToBench = common.findUserMention(command);
     await benchUserBySlackId(slackUserIdToBench);
+
     send(slackUserIdToBench, `You have been benched by ${theEvent.user}. ` +
     'Send me, Git Slackin, `start` to start receiving Review Requests again.');
+
     return await sendEphemeralMessage(theEvent.channel, theEvent.user,
       `I have benched <@${slackUserIdToBench}> as requested.`);
+  }
+
+  if (/^unbench/.test(command)) {
+    const slackUserIdToUnbench = common.findUserMention(command);
+    await activateUserBySlackId(slackUserIdToUnbench);
+
+    send(slackUserIdToUnbench, `You have been unbenched by ${theEvent.user}. ` +
+    'Send me, Git Slackin, `start` to start receiving Review Requests again.');
+
+    return sendEphemeralMessage(theEvent.channel, theEvent.user,
+      `I have unbenched <@${slackUserIdToUnbench}> as requested.`);
   }
 
   if (command === 'update') {
