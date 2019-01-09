@@ -245,10 +245,54 @@ async function prReviewed(body) {
   }
 }
 
+function sendPrUpdatedMessage(opener, users, body) {
+  let theUsers = users;
+  if (!Array.isArray(theUsers)) theUsers = [theUsers];
+  const messagesQueue = theUsers.map(user => {
+    logger.info(`Send to ${user.name}`);
+    const conversationId = user.slack.id;
+
+    const message = `Looks like ${opener.name} has updated` +
+    `<${body.pull_request.html_url}|${body.pull_request.base.repo.name} PR #${body.number}> ` +
+    `"${body.pull_request.title}" that you reviewed. Please take another look!`;
+    const msgObj = {
+      text: message,
+      attachments: [
+        {
+          text: 'Hacky workaround will replace message',
+          callback_id: 'ISetACallbackId',
+          actions: [
+            {
+              name: 'todo',
+              text: 'Done',
+              type: 'button',
+              value: 'testValue',
+            },
+          ],
+        },
+      ],
+    };
+
+    return send(conversationId, msgObj);
+  });
+
+  return Promise.all(messagesQueue);
+}
+
+async function prSynchronize(body) {
+  const opener = await findByGithubName(body.pull_request.user.login);
+  const reviewers = await Promise.all(body.pull_request.requested_reviewers.map(user => {
+    return findByGithubName(user.login);
+  }));
+
+  return await sendPrUpdatedMessage(opener, reviewers, body);
+}
+
 module.exports = {
   pr: {
     opened: prOpened,
     reviewed: prReviewed,
     reviewRequested: reviewRequested,
+    sync: prSynchronize,
   },
 };

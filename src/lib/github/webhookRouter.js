@@ -40,6 +40,7 @@ async function routeIt(body, { signature }) {
     if (body.action === 'opened') return await pr.opened(body);
     if (body.action === 'submitted') return await pr.reviewed(body);
     if (body.action === 'review_requested') return await pr.reviewRequested(body);
+    if (body.action === 'synchronize') return await pr.sync(body);
   } catch (e) {
     logger.error(e);
     throw e;
