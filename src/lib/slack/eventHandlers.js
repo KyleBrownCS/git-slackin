@@ -110,6 +110,18 @@ async function handleAdminCommands(command, theEvent, res) {
 async function handleCommands(text, theEvent, res) {
   const smallText = text.toLowerCase();
 
+  if (smallText === 'ping') {
+    logger.info(`[DM Event] ${theEvent.user} is playing ping-pong`);
+    return sendEphemeralMessage(theEvent.channel, theEvent.user,
+      'pong :table_tennis_paddle_and_ball:');
+  }
+
+  if (smallText === 'hello' || smallText === 'hi') {
+    logger.info(`[DM Event] ${theEvent.user} is trying to converse with a robot.`);
+    return sendEphemeralMessage(theEvent.channel, theEvent.user,
+      'Hey.');
+  }
+
   if (smallText === 'stop' || smallText === 'silence' || smallText === 'mute') {
     logger.info(`[DM Event] ${theEvent.user} benched themselves.`);
     benchUserBySlackId(theEvent.user);
