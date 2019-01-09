@@ -50,7 +50,7 @@ async function updateGitSlackin(theEvent) {
 
 async function handleAdminCommands(command, theEvent, res) {
   if (!config.get('slack_manager_id') || config.get('slack_manager_id') !== theEvent.user) {
-    return sendEphemeralMessage(theEvent.channel, theEvent.user, 'This command is Admin-only ');
+    return sendEphemeralMessage(theEvent.channel, theEvent.user, 'This command is Admin-only or does not exist.');
   }
 
   if (/^echo/.test(command)) {

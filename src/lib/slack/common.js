@@ -40,6 +40,15 @@ async function generateAndSendBootMessage(channel = null, { msgText = null } = {
   }
 }
 
+function findUserMention(text) {
+  const userMentions = /<@(\w+)>/gi.exec(text);
+  if (!userMentions || userMentions.length === 0) {
+    return null;
+  }
+  return userMentions[1].toUpperCase();
+}
+
 module.exports = {
   generateAndSendBootMessage,
+  findUserMention,
 };
