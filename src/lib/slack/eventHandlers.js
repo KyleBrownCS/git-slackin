@@ -7,7 +7,7 @@ const appRoot = require('app-root-path');
 const fs = require('fs');
 const configFile = `${appRoot}/config/development.json`;
 const configuration = require(configFile);
-const simpleGit = require('simple-git')(appRoot.path);
+const simpleGit = require('simple-git/promise')(appRoot.path);
 
 function challenge(req, res, next) {
   return res.send(req.body.challenge);
@@ -27,6 +27,11 @@ async function updateGitSlackin(theEvent) {
   let updateResult = null;
   const branch = 'master';
   try {
+    // Let's discard these changes first.
+    await simpleGit.stash();
+    await simpleGit.stash(['drop']);
+
+    // Now let's grab the latest and always take the origin's changes
     updateResult = await simpleGit.pull('origin', branch,
       { '--strategy': 'recursive',
         '--strategy-option': 'theirs' });
