@@ -122,8 +122,12 @@ async function handleCommands(text, theEvent, res) {
 
   if (smallText === 'ping') {
     logger.info(`[DM Event] ${theEvent.user} is playing ping-pong`);
-    return sendEphemeralMessage(theEvent.channel, theEvent.user,
-      'pong :table_tennis_paddle_and_ball:');
+    return sendToChannel(theEvent.channel, 'pong :table_tennis_paddle_and_ball:');
+  }
+
+  if (smallText === 'marco') {
+    logger.info(`[DM Event] ${theEvent.user} is looking for Marco`);
+    return sendToChannel(theEvent.channel, 'Polo! :water_polo:');
   }
 
   if (smallText === 'hello' || smallText === 'hi') {
