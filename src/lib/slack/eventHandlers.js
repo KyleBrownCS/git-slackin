@@ -193,12 +193,14 @@ function route(req, res, next) {
 
   // logger.verbose(`[Slack Action] Received event: ${JSON.stringify(req.body, null, 2)}. Params: ${req.params}`);
   if (req.body.event.type === 'message' && req.body.event.subtype === 'bot_message') {
-    logger.debug('Bots should not talk together');
+    return logger.debug('Bots should not talk together');
   }
 
   if (req.body.event.type === 'message' && !req.body.event.subtype && req.body.event.channel_type === 'im') {
     console.log(req.body.event);
     return handleDM(req.body.event, res);
+  } else if (req.body.event.type === 'message') {
+    return logger.warn(`[Message] [Unhandled] Subtype: '${req.body.event.subtype}' Channel type: '${req.body.event.channel_type}'`);
   }
 
   if (req.body.event.type === 'app_mention') {
