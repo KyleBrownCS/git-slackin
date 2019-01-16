@@ -23,18 +23,16 @@ async function updateConfigurations(configOverrides) {
 //Git#then is deprecated after version 1.72 and will be removed in version 2.x
 //Please switch to using Git#exec to run arbitrary functions as part of the command chain.
 
-async function updateGitSlackin(theEvent) {
+async function updateGitSlackin(theEvent, branch = 'master') {
   let updateResult = null;
-  const branch = 'master';
   try {
     // Let's discard these changes first.
     await simpleGit.stash();
     await simpleGit.stash(['drop']);
 
     // Now let's grab the latest and always take the origin's changes
-    updateResult = await simpleGit.pull('origin', branch,
-      { '--strategy': 'recursive',
-        '--strategy-option': 'theirs' });
+    // Rebase to avoid extra commits. Thanks Oh-my-zsh for the inspiration!
+    updateResult = await simpleGit.pull('origin', branch, { '--rebase': 'true' });
   } catch (e) {
     return sendEphemeralMessage(theEvent.challenge, theEvent.user.slack, `Update failed. Error: ${e}`);
   }
@@ -103,9 +101,11 @@ async function handleAdminCommands(command, theEvent, res) {
       `I have unbenched <@${slackUserIdToUnbench}> as requested.`);
   }
 
-  if (command === 'update') {
+  const updateRegexResult = /^update (\w+)$/.exec(command);
+  if (updateRegexResult && updateRegexResult > 1) {
+    const branch = updateRegexResult[1];
     logger.info(`[DM Event] ${theEvent.user} is updating to the latest version`);
-    return await updateGitSlackin(theEvent);
+    return await updateGitSlackin(theEvent, branch);
   }
 
   if (command === 'shutdown') {
