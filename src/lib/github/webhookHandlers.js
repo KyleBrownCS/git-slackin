@@ -102,7 +102,7 @@ async function requestReviewersAndAssignees(users, body) {
   }
 }
 
-async function reviewRequested(body) {
+async function requestReviewByGithubName(body) {
   const opener = await findByGithubName(body.pull_request.user.login);
   const requestedReviewer = await findByGithubName(body.requested_reviewer.login);
   return await sendReviewRequestMessage(opener, requestedReviewer, body);
@@ -228,10 +228,12 @@ async function prReviewed(body) {
   try {
     // let coder know its been done
     await send(coder.slack.id, message);
-    const shouldNotify = await checkForReviews({
+    let shouldNotify = await checkForReviews({
       owner: body.repository.owner.login,
       repo: body.repository.name,
       number: body.pull_request.number });
+
+    shouldNotify = shouldNotify && body.review.state.toUpperCase() === 'APPROVED';
 
     if (shouldNotify) {
       const mergerMessage =
@@ -292,7 +294,7 @@ module.exports = {
   pr: {
     opened: prOpened,
     reviewed: prReviewed,
-    reviewRequested: reviewRequested,
+    reviewRequested: requestReviewByGithubName,
     sync: prSynchronize,
   },
 };
