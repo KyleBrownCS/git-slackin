@@ -30,14 +30,14 @@ async function selectRandomGithubUsersNot(notMe, numUsers = 1) {
   return usersToReturn;
 }
 
-// Look up a single user quickly
+// Look up a single user quickly or return null for easy comparisons
 async function findByGithubName(name) {
-  return users.find(element => element.github.toLowerCase() === name.toLowerCase());
+  return users.find(element => element.github.toLowerCase() === name.toLowerCase()) || null;
 }
 
-// Look up a single user quickly
+// Look up a single user quickly or return null for easy comparisons
 async function findBySlackUserId(slackId) {
-  return users.find(element => element.slack.id.toLowerCase() === slackId.toLowerCase());
+  return users.find(element => element.slack.id.toLowerCase() === slackId.toLowerCase()) || null;
 }
 
 async function listBenchedUsers(onlyNames = false) {

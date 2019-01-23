@@ -15,41 +15,41 @@ octokit.authenticate({
   token: config.get('github_token'),
 });
 
-function sendReviewRequestMessage(opener, users, body) {
-  let theUsers = users;
-  if (!Array.isArray(theUsers)) theUsers = [theUsers];
-  const messagesQueue = theUsers.map(user => {
-    logger.info(`Send to ${user.name}`);
-    const conversationId = user.slack.id;
+function sendReviewRequestMessage(openerName, user, body) {
+  logger.info(`[Review Request Message] Send to ${user.name}`);
+  if (!user || !user.slack) {
+    logger.warn('[Review Request Message] No user to send message to');
+    return Promise.reject('No Slack ID to sent message to');
+  }
 
-    const message = 'Hi! Please look at ' +
-    `<${body.pull_request.html_url}|${body.pull_request.base.repo.name} PR #${body.number}> ` +
-    `"${body.pull_request.title}" that ${opener.name} opened.`;
-    const msgObj = {
-      text: message,
-      attachments: [
-        {
-          text: 'Hacky workaround will remove message',
-          callback_id: 'ISetACallbackId',
-          actions: [
-            {
-              name: 'todo',
-              text: 'Remove',
-              type: 'button',
-              value: 'testValue',
-            },
-          ],
-        },
-      ],
-    };
+  const conversationId = user.slack.id;
 
-    return send(conversationId, msgObj);
-  });
+  const message = 'Hi! Please look at ' +
+  `<${body.pull_request.html_url}|${body.pull_request.base.repo.name} PR #${body.number}> ` +
+  `"${body.pull_request.title}" that ${openerName} opened.`;
+  const msgObj = {
+    text: message,
+    attachments: [
+      {
+        text: 'Hacky workaround will remove message',
+        callback_id: 'ISetACallbackId',
+        actions: [
+          {
+            name: 'todo',
+            text: 'Remove this message',
+            type: 'button',
+            value: 'testValue',
+          },
+        ],
+      },
+    ],
+  };
 
-  return Promise.all(messagesQueue);
+  return send(conversationId, msgObj);
 }
 
 async function sendOpenerInitialStateMessage(opener, reviewers, prObj) {
+  if (!opener.slack) return logger.warn('[PR Opened] No slack user to message');
   const conversationId = opener.slack.id;
   const reviewersNames = reviewers.map(user => `<@${user.slack.id}>`);
   const message = `You opened <${prObj.html_url}|PR #${prObj.number}> ` +
@@ -104,8 +104,12 @@ async function requestReviewersAndAssignees(users, body) {
 
 async function requestReviewByGithubName(body) {
   const opener = await findByGithubName(body.pull_request.user.login);
+  const openerName = opener ? opener.name : body.pull_request.user.login;
   const requestedReviewer = await findByGithubName(body.requested_reviewer.login);
-  return await sendReviewRequestMessage(opener, requestedReviewer, body);
+  if (requestedReviewer && requestedReviewer.slack) {
+    return await sendReviewRequestMessage(openerName, requestedReviewer, body);
+  }
+  return logger.warn('[Request Review] Cannot find user');
 }
 
 // Handle everything we want to do about opening a PR.
@@ -115,7 +119,7 @@ async function prOpened(body) {
     // TODO: Have findByGithubName fail better if it can't find the person
     const opener = await findByGithubName(body.pull_request.user.login);
     const wipRegex = /^\[*\s*WIP\s*\]*\s+/gi;
-    if (wipRegex.test(body.pull_request.title)) {
+    if (wipRegex.test(body.pull_request.title) && opener) {
       send(opener,
         `Are you sure you meant to open PR <${body.pull_request.html_url}|${body.pull_request.title}>? ` +
         'You marked it Work in Progress. So I will ignore it');
@@ -128,18 +132,18 @@ async function prOpened(body) {
     const preselectedUsers = await Promise.all(body.pull_request.assignees.map(user => {
       return findByGithubName(user.login);
     }));
-    const randomUsers = await selectRandomGithubUsersNot(
-      preselectedUsers.concat(opener.github),
-      numReviewersToRandomlySelect);
+    const notTheseUsers = opener ? preselectedUsers.concat(opener.github) : preselectedUsers;
+    const randomUsers = await selectRandomGithubUsersNot(notTheseUsers, numReviewersToRandomlySelect);
     const users = preselectedUsers.concat(randomUsers);
 
     // TODO: Handle it better if either fails
-    const results = await Promise.all([
-      sendOpenerInitialStateMessage(opener, users, body.pull_request),
-      requestReviewersAndAssignees(randomUsers, body),
-    ]);
-    logger.info(`[PR Opened] Opener: ${opener.name} Reviewers Messaged: ${users.map(user => user.name)}`);
-    return results;
+    await requestReviewersAndAssignees(randomUsers, body);
+    if (opener) {
+      await sendOpenerInitialStateMessage(opener, users, body.pull_request);
+    }
+
+    const openerName = opener ? opener.name : body.pull_request.user.login;
+    return logger.info(`[PR Opened] Opener: ${openerName} Reviewers Messaged: ${users.map(user => user.name)}`);
   } catch (e) {
     logger.error(`[PR Opened] Error: ${e}`);
     throw e;
@@ -189,6 +193,8 @@ async function prReviewed(body) {
   try {
     reviewer = await findByGithubName(body.review.user.login);
     coder = await findByGithubName(body.pull_request.user.login);
+    if (!reviewer) throw new Error('Reviewer not registered with git slackin');
+    if (!coder) throw new Error('Coder not registered with git slackin');
   } catch (e) {
     logger.error(`[PR Reviewed] Error: ${e}`);
     throw e;
@@ -247,14 +253,18 @@ async function prReviewed(body) {
   }
 }
 
-function sendPrUpdatedMessage(opener, users, body) {
+function sendPrUpdatedMessage(openerName, users, body) {
   let theUsers = users;
   if (!Array.isArray(theUsers)) theUsers = [theUsers];
   const messagesQueue = theUsers.map(user => {
-    logger.info(`Send to ${user.name}`);
+    if (!user.slack) {
+      logger.warn('[Send PR Updated Message] This user is not registered with git slackin');
+      return Promise.resolve();
+    }
+    logger.info(`[Send PR Updated Message] to ${user.name}`);
     const conversationId = user.slack.id;
 
-    const message = `Looks like ${opener.name} has updated` +
+    const message = `Looks like ${openerName} has updated` +
     `<${body.pull_request.html_url}|${body.pull_request.base.repo.name} PR #${body.number}> ` +
     `"${body.pull_request.title}" that you reviewed. Please take another look!`;
     const msgObj = {
@@ -283,11 +293,12 @@ function sendPrUpdatedMessage(opener, users, body) {
 
 async function prSynchronize(body) {
   const opener = await findByGithubName(body.pull_request.user.login);
+  const openerName = opener ? opener.name : body.pull_request.user.login;
   const reviewers = await Promise.all(body.pull_request.requested_reviewers.map(user => {
     return findByGithubName(user.login);
   }));
 
-  return await sendPrUpdatedMessage(opener, reviewers, body);
+  return await sendPrUpdatedMessage(openerName, reviewers, body);
 }
 
 module.exports = {
