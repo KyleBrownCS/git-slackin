@@ -23,6 +23,8 @@ async function updateConfigurations(configOverrides) {
 //Git#then is deprecated after version 1.72 and will be removed in version 2.x
 //Please switch to using Git#exec to run arbitrary functions as part of the command chain.
 
+// maybe I should just fetch and checkout the branch instead of pulling I think this would allow for better updates
+// especially if changing branches.
 async function updateGitSlackin(theEvent, branch = 'master') {
   let updateResult = null;
   try {
@@ -101,9 +103,10 @@ async function handleAdminCommands(command, theEvent, res) {
       `I have unbenched <@${slackUserIdToUnbench}> as requested.`);
   }
 
-  const updateRegexResult = /^update (\w+)$/.exec(command);
-  if (updateRegexResult && updateRegexResult > 1) {
-    const branch = updateRegexResult[1];
+  // This looks for update either by itself or followed by a space then another word (the branch name)
+  const updateRegexResult = /^update(?:\s(\w+))?$/.exec(command);
+  if (updateRegexResult && updateRegexResult.length > 1) {
+    const branch = updateRegexResult[1]; // will be undefined if not found and that's fine
     logger.info(`[DM Event] ${theEvent.user} is updating to the latest version`);
     return await updateGitSlackin(theEvent, branch);
   }
