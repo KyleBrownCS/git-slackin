@@ -60,10 +60,10 @@ async function handleAdminCommands(command, theEvent, res) {
     return sendEphemeralMessage(theEvent.channel, theEvent.user, JSON.stringify(configuration));
   }
 
-  const setConfigRegexRestult = /^config set (.+)$/.exec(command);
-  if (setConfigRegexRestult && setConfigRegexRestult.length > 1) {
+  const setConfigRegexResult = /^config set (.+)$/.exec(command);
+  if (setConfigRegexResult && setConfigRegexResult.length > 1) {
     try {
-      const newConfig = JSON.parse(setConfigRegexRestult[1]);
+      const newConfig = JSON.parse(setConfigRegexResult[1]);
       await updateConfigurations(newConfig);
       return await sendToChannel(theEvent.channel, 'Updated config, restarting Git Slackin...')
         .then(() => {
