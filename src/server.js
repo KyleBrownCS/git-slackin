@@ -5,11 +5,15 @@ const bodyParser = require('body-parser');
 const config = require('config');
 const logger = require('./logger');
 // My modules
+const eventHub = require('./eventHub');
 const githubWebhooks = require('./lib/github/webhookRouter');
 const slackAction = require('./lib/slack/actionHandlers');
 const slackEventHandler = require('./lib/slack/eventHandlers');
 const slackCommon = require('./lib/slack/common');
 const { openDM } = require('./lib/slack/message');
+
+
+githubWebhooks.setup(eventHub);
 // Bootup message stuff
 
 // Handle errors (see `errorCodes` export)

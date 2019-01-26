@@ -15,7 +15,7 @@ octokit.authenticate({
   token: config.get('github_token'),
 });
 
-function sendReviewRequestMessage(openerName, user, body) {
+function sendReviewRequestMessage(openerName, user, { prURL, repo, prNumber, prTitle }) {
   logger.info(`[Review Request Message] Send to ${user.name}`);
   if (!user || !user.slack) {
     logger.warn('[Review Request Message] No user to send message to');
@@ -25,8 +25,8 @@ function sendReviewRequestMessage(openerName, user, body) {
   const conversationId = user.slack.id;
 
   const message = 'Hi! Please look at ' +
-  `<${body.pull_request.html_url}|${body.pull_request.base.repo.name} PR #${body.number}> ` +
-  `"${body.pull_request.title}" that ${openerName} opened.`;
+  `<${prURL}|${repo} PR #${prNumber}> ` +
+  `"${prTitle}" that ${openerName} opened.`;
   const msgObj = {
     text: message,
     attachments: [
@@ -48,12 +48,12 @@ function sendReviewRequestMessage(openerName, user, body) {
   return send(conversationId, msgObj);
 }
 
-async function sendOpenerInitialStateMessage(opener, reviewers, prObj) {
+async function sendOpenerInitialStateMessage(opener, reviewers, { prNumber, prURL, prTitle, repo }) {
   if (!opener.slack) return logger.warn('[PR Opened] No slack user to message');
   const conversationId = opener.slack.id;
   const reviewersNames = reviewers.map(user => `<@${user.slack.id}>`);
-  const message = `You opened <${prObj.html_url}|PR #${prObj.number}> ` +
-  `\`${prObj.title.replace('`', '\\`')}\`, on ${prObj.base.repo.name}.\n` +
+  const message = `You opened <${prURL}|PR #${prNumber}> ` +
+  `\`${prTitle.replace('`', '\\`')}\`, on ${repo}.\n` +
   ':spiral_note_pad: If you\'re in the office :office: today, give these people Post-Its!\n' +
   '(If you\'re working remote :house:, don\'t worry. I\'ll still send them a message.):';
 
@@ -74,26 +74,27 @@ async function sendOpenerInitialStateMessage(opener, reviewers, prObj) {
   return send(conversationId, msgObj);
 }
 
-async function requestReviewersAndAssignees(users, body) {
+async function requestReviewersAndAssignees(users, { owner, repo, prNumber }) {
   try {
     const githubUsers = users.map(user => user.github);
 
     // Should probably look at the results to check if reviewres are there.
     const reviewRequests = await octokit.pullRequests.createReviewRequest({
-      owner: body.pull_request.base.repo.owner.login,
-      repo: body.pull_request.base.repo.name,
-      number: body.pull_request.number,
+      owner,
+      repo,
+      number: prNumber,
       reviewers: githubUsers,
     });
 
+    // TODO: Remove this, add it as a side effect of requesting review.
     const assignees = await octokit.issues.addAssignees({
-      owner: body.pull_request.base.repo.owner.login,
-      repo: body.pull_request.base.repo.name,
-      number: body.pull_request.number,
+      owner,
+      repo,
+      number: prNumber,
       assignees: githubUsers,
     });
 
-    logger.info(`[Add Users to PR] Repo: ${body.pull_request.base.repo.name}. ` +
+    logger.info(`[Add Users to PR] Repo: ${repo}. ` +
     `Assigned and Request reviews from: ${githubUsers}`);
     return [reviewRequests, assignees];
   } catch (e) {
@@ -102,34 +103,35 @@ async function requestReviewersAndAssignees(users, body) {
   }
 }
 
-async function requestReviewByGithubName(body) {
-  const opener = await findByGithubName(body.pull_request.user.login);
-  const openerName = opener ? opener.name : body.pull_request.user.login;
-  const requestedReviewer = await findByGithubName(body.requested_reviewer.login);
+async function requestReviewByGithubName({
+  openerGithubName, requestedReviewerGithubName, prURL, repo, prNumber, prTitle }) {
+  const opener = await findByGithubName(openerGithubName);
+  const openerName = opener ? opener.name : openerGithubName;
+  const requestedReviewer = await findByGithubName(requestedReviewerGithubName);
   if (requestedReviewer && requestedReviewer.slack) {
-    return await sendReviewRequestMessage(openerName, requestedReviewer, body);
+    return await sendReviewRequestMessage(openerName, requestedReviewer, { prURL, repo, prNumber, prTitle });
   }
   return logger.warn('[Request Review] Cannot find user');
 }
 
 // Handle everything we want to do about opening a PR.
 // v1: randomly pick 2 users and send them links on Slack
-async function prOpened(body) {
+async function prOpened({ openerGithubName, prTitle, prURL, assignees, owner, repo, prNumber, reviewers }) {
   try {
     // TODO: Have findByGithubName fail better if it can't find the person
-    const opener = await findByGithubName(body.pull_request.user.login);
+    const opener = await findByGithubName(openerGithubName);
     const wipRegex = /^\[*\s*WIP\s*\]*\s+/gi;
-    if (wipRegex.test(body.pull_request.title) && opener) {
+    if (wipRegex.test(prTitle) && opener) {
       send(opener,
-        `Are you sure you meant to open PR <${body.pull_request.html_url}|${body.pull_request.title}>? ` +
+        `Are you sure you meant to open PR <${prURL}|${prTitle}>? ` +
         'You marked it Work in Progress. So I will ignore it');
     }
 
     // NOTE: This uses assignees because requested reviewers come back in separate events
-    const numReviewersAlready = body.pull_request.assignees.length;
+    const numReviewersAlready = assignees.length;
     const numReviewersToRandomlySelect = NUM_REVIEWERS - numReviewersAlready;
 
-    const preselectedUsers = await Promise.all(body.pull_request.assignees.map(user => {
+    const preselectedUsers = await Promise.all(assignees.map(user => {
       return findByGithubName(user.login);
     }));
     const notTheseUsers = opener ? preselectedUsers.concat(opener.github) : preselectedUsers;
@@ -137,12 +139,12 @@ async function prOpened(body) {
     const users = preselectedUsers.concat(randomUsers);
 
     // TODO: Handle it better if either fails
-    await requestReviewersAndAssignees(randomUsers, body);
+    await requestReviewersAndAssignees(randomUsers, { owner, repo, prNumber, reviewers });
     if (opener) {
-      await sendOpenerInitialStateMessage(opener, users, body.pull_request);
+      await sendOpenerInitialStateMessage(opener, users, { prNumber, prURL, prTitle, repo });
     }
 
-    const openerName = opener ? opener.name : body.pull_request.user.login;
+    const openerName = opener ? opener.name : openerGithubName;
     return logger.info(`[PR Opened] Opener: ${openerName} Reviewers Messaged: ${users.map(user => user.name)}`);
   } catch (e) {
     logger.error(`[PR Opened] Error: ${e}`);
@@ -188,13 +190,16 @@ async function checkForReviews({ owner, repo, number }) {
 // when a PR is reviewed, look up the PR Node.ghuser and grab the channel/ts info to remove it.
 // https://api.slack.com/methods/chat.postMessage
 // https://api.slack.com/methods/chat.delete
-async function prReviewed(body) {
-  let reviewer, coder;
+async function prReviewed({
+  reviewerGithubName, openerGithubName, reviewState,
+  prURL, repo, prNumber, prTitle, owner,
+}) {
+  let reviewer, opener;
   try {
-    reviewer = await findByGithubName(body.review.user.login);
-    coder = await findByGithubName(body.pull_request.user.login);
+    reviewer = await findByGithubName(reviewerGithubName);
+    opener = await findByGithubName(openerGithubName);
     if (!reviewer) throw new Error('Reviewer not registered with git slackin');
-    if (!coder) throw new Error('Coder not registered with git slackin');
+    if (!opener) throw new Error('opener not registered with git slackin');
   } catch (e) {
     logger.error(`[PR Reviewed] Error: ${e}`);
     throw e;
@@ -202,22 +207,22 @@ async function prReviewed(body) {
 
   if (!reviewer) {
     logger.error('[PR Reviewed] Missing Reviewer from user list.');
-    throw new Error('Could not finder reviewer or coder');
+    throw new Error('Could not finder reviewer or opener');
   }
 
-  if (!coder) {
-    logger.error('[PR Reviewed] Missing Coder from user list.');
-    throw new Error('Could not finder reviewer or coder');
+  if (!opener) {
+    logger.error('[PR Reviewed] Missing opener from user list.');
+    throw new Error('Could not finder reviewer or opener');
   }
 
-  if (reviewer.slack.id === coder.slack.id) {
+  if (reviewer.slack.id === opener.slack.id) {
     const exitEarlyMsg = '[PR Reviewed] No need to notify for commenting on your own PR';
     logger.debug(exitEarlyMsg);
     return exitEarlyMsg;
   }
 
   let emoji = ':speech_balloon:';
-  const state = body.review.state.toLowerCase();
+  const state = reviewState.toLowerCase();
   if (state === 'approved') {
     emoji = ':heavy_check_mark:';
   } else if (state === 'changes_requested') {
@@ -225,26 +230,26 @@ async function prReviewed(body) {
   }
 
   const message = `${emoji} ${reviewer.name} has reviewed your PR ` +
-  `<${body.review.html_url}|${body.pull_request.base.repo.name} PR #${body.pull_request.number}>: ` +
-  `\`${body.pull_request.title}\``;
+  `<${prURL}|${repo} PR #${prNumber}>: ` +
+  `\`${prTitle}\``;
 
-  logger.info(`[PR Reviewed] Reviewer: ${reviewer.name}. Repo: ${body.pull_request.base.repo.name}.` +
-  `Sending opener (${coder.name}, id ${coder.slack.id}) a message...`);
+  logger.info(`[PR Reviewed] Reviewer: ${reviewer.name}. Repo: ${repo}.` +
+  `Sending opener (${opener.name}, id ${opener.slack.id}) a message...`);
 
   try {
-    // let coder know its been done
-    await send(coder.slack.id, message);
+    // let opener know its been done
+    await send(opener.slack.id, message);
     let shouldNotify = await checkForReviews({
-      owner: body.repository.owner.login,
-      repo: body.repository.name,
-      number: body.pull_request.number });
+      owner,
+      repo,
+      number: prNumber });
 
-    shouldNotify = shouldNotify && body.review.state.toUpperCase() === 'APPROVED';
+    shouldNotify = shouldNotify && reviewState.toUpperCase() === 'APPROVED';
 
     if (shouldNotify) {
       const mergerMessage =
-      `<${body.review.html_url}|${body.pull_request.base.repo.name} PR #${body.pull_request.number}>: ` +
-      `\`${body.pull_request.title}\` has enough reviewers!`;
+      `<${prURL}|${repo} PR #${prNumber}>: ` +
+      `\`${prTitle}\` has enough reviewers!`;
       return await notifyMergers(mergerMessage);
     }
   } catch (e) {
@@ -253,7 +258,7 @@ async function prReviewed(body) {
   }
 }
 
-function sendPrUpdatedMessage(openerName, users, body) {
+function sendPrUpdatedMessage(openerName, users, { prURL, repo, prNumber, prTitle }) {
   let theUsers = users;
   if (!Array.isArray(theUsers)) theUsers = [theUsers];
   const messagesQueue = theUsers.map(user => {
@@ -265,8 +270,8 @@ function sendPrUpdatedMessage(openerName, users, body) {
     const conversationId = user.slack.id;
 
     const message = `Looks like ${openerName} has updated` +
-    `<${body.pull_request.html_url}|${body.pull_request.base.repo.name} PR #${body.number}> ` +
-    `"${body.pull_request.title}" that you reviewed. Please take another look!`;
+    `<${prURL}|${repo} PR #${prNumber}> ` +
+    `"${prTitle}" that you reviewed. Please take another look!`;
     const msgObj = {
       text: message,
       attachments: [
@@ -291,14 +296,14 @@ function sendPrUpdatedMessage(openerName, users, body) {
   return Promise.all(messagesQueue);
 }
 
-async function prSynchronize(body) {
-  const opener = await findByGithubName(body.pull_request.user.login);
-  const openerName = opener ? opener.name : body.pull_request.user.login;
-  const reviewers = await Promise.all(body.pull_request.requested_reviewers.map(user => {
+async function prSynchronize({ openerGithubName, requestedReviewers, prURL, repo, prNumber, prTitle }) {
+  const opener = await findByGithubName(openerGithubName);
+  const openerName = opener ? opener.name : openerGithubName;
+  const reviewers = await Promise.all(requestedReviewers.map(user => {
     return findByGithubName(user.login);
   }));
 
-  return await sendPrUpdatedMessage(openerName, reviewers, body);
+  return await sendPrUpdatedMessage(openerName, reviewers, { prURL, repo, prNumber, prTitle });
 }
 
 module.exports = {

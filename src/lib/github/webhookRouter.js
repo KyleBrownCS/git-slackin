@@ -5,6 +5,8 @@ const crypto = require('crypto');
 const logger = require('../../logger');
 const { pr } = require('./webhookHandlers');
 
+let eventHub = null;
+
 function verifySignature(body, givenAlgSig) {
   try {
     const hmac = crypto.createHmac('sha1', config.get('github_secret'));
@@ -22,6 +24,39 @@ function verifySignature(body, givenAlgSig) {
   }
 }
 
+function extractPRInfo(body) {
+  const openerGithubName = body.pull_request.user.login;
+  const prTitle = body.pull_request.title;
+  const prURL = body.pull_request.html_url;
+  const numAssignees = body.pull_request.assignees.length;
+  const assignees = body.pull_request.assignees;
+  const owner = body.pull_request.repo.owner.login;
+  const repo = body.pull_request.base.repo.name;
+  const prNumber = body.pull_request.number;
+  const requestedReviewers = body.pull_request.requested_reviewers;
+  const requestedReviewerGithubName = body.requested_reviewer.login;
+
+  return {
+    openerGithubName, prTitle, prURL, numAssignees, assignees,
+    owner, repo, prNumber, requestedReviewers, requestedReviewerGithubName,
+  };
+}
+
+function extractReviewInfo(body) {
+  const reviewerGithubName = body.review.user.login;
+  const reviewState = body.review.state;
+
+  const prInfo = extractPRInfo(body);
+
+  const reviewInfo = {
+    reviewerGithubName,
+    reviewState,
+  };
+
+  return Object.assign(prInfo, reviewInfo);
+}
+
+
 // very simple router based on the action that occurred.
 async function routeIt(body, { signature }) {
   if (!body.action) throw new Error('no Action');
@@ -37,10 +72,19 @@ async function routeIt(body, { signature }) {
   logger.info(`[RouteIt] ${body.action} on ${body.pull_request.base.repo.name}`);
 
   try {
-    if (body.action === 'opened') return await pr.opened(body);
-    if (body.action === 'submitted') return await pr.reviewed(body);
-    if (body.action === 'review_requested') return await pr.reviewRequested(body);
-    if (body.action === 'synchronize') return await pr.sync(body);
+    if (body.action === 'opened') {
+      return eventHub.emit('pr.opened', extractPRInfo(body));
+    }
+    if (body.action === 'submitted') {
+      return eventHub.emit('pr.submitted', extractReviewInfo(body));
+    }
+    if (body.action === 'review_requested') {
+      return eventHub.emit('pr.review_requested', extractPRInfo(body));
+    }
+
+    if (body.action === 'synchronize') {
+      return eventHub.emit('pr.synchronize', extractReviewInfo(body));
+    }
   } catch (e) {
     logger.error(e);
     throw e;
@@ -49,6 +93,20 @@ async function routeIt(body, { signature }) {
   logger.warn(`[RouteIt] No handler for: ${body.action} on ${body.pull_request.base.repo.name}`);
   return Promise.reject('Unhandled action type');
 }
+
+function setupSubscriptions() {
+  eventHub.on('pr.opened', pr.opened);
+  eventHub.on('pr.submitted', pr.reviewed);
+  eventHub.on('pr.review_requested', pr.reviewRequested);
+  eventHub.on('pr.synchronize', pr.sync);
+}
+
+function setup(emitter) {
+  eventHub = emitter;
+  setupSubscriptions();
+}
 module.exports = {
   handle: routeIt,
+  setupSubscriptions,
+  setup,
 };
