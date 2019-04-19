@@ -325,7 +325,7 @@ async function prClosed(body) {
     } else {
       return logger.warn('[PR Closed] No slack user to message');
     }
-    return logger.info(`[PR Closed] Opener: ${opener} notified`);
+    return logger.info(`[PR Closed] PR Opener notified`);
   } catch (e) {
     logger.error(`[PR Closed] Error: ${e}`);
     throw e;
