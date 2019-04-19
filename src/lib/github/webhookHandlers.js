@@ -320,10 +320,10 @@ async function prClosed(body) {
     const opener = await findByGithubName(body.pull_request.user.login);
 
     // From https://developer.github.com/v3/activity/events/types/#pullrequestevent action key
-    if (opener && body.pull_request.merged) {
-      await notifyOpenerPRClosed(opener, body.pull_request, true);
+    if (opener) {
+      await notifyOpenerPRClosed(opener, body.pull_request, body.pull_request.merged);
     } else {
-      await notifyOpenerPRClosed(opener, body.pull_request, false);
+      return logger.warn('[PR Closed] No slack user to message');
     }
     return logger.info(`[PR Closed] Opener: ${opener} notified`);
   } catch (e) {
