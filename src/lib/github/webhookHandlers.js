@@ -301,8 +301,40 @@ async function prSynchronize(body) {
   return await sendPrUpdatedMessage(openerName, reviewers, body);
 }
 
+async function notifyOpenerPRClosed(opener, body, merged) {
+  if (!opener.slack) return logger.warn('[PR Closed] No slack user to message');
+  const conversationId = opener.slack.id;
+  const mergedMessage = merged ? ' via merge' : '';
+  const message = `:checkered_flag: Your PR <${body.html_url}|PR #${body.number}> ` +
+  `\`${body.title.replace('`', '\\`')}\`, on ${body.base.repo.name} ` +
+  `was closed${mergedMessage}!\nMake sure to update your tasks in Jira!`;
+
+  const msgObj = {
+    text: message,
+  };
+  return send(conversationId, msgObj);
+}
+
+async function prClosed(body) {
+  try {
+    const opener = await findByGithubName(body.pull_request.user.login);
+
+    // From https://developer.github.com/v3/activity/events/types/#pullrequestevent action key
+    if (opener && body.pull_request.merged) {
+      await notifyOpenerPRClosed(opener, body.pull_request, true);
+    } else {
+      await notifyOpenerPRClosed(opener, body.pull_request, false);
+    }
+    return logger.info(`[PR Closed] Opener: ${opener} notified`);
+  } catch (e) {
+    logger.error(`[PR Closed] Error: ${e}`);
+    throw e;
+  }
+}
+
 module.exports = {
   pr: {
+    closed: prClosed,
     opened: prOpened,
     reviewed: prReviewed,
     reviewRequested: requestReviewByGithubName,
