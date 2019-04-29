@@ -264,7 +264,7 @@ function sendPrUpdatedMessage(openerName, users, body) {
     logger.info(`[Send PR Updated Message] to ${user.name}`);
     const conversationId = user.slack.id;
 
-    const message = `Looks like ${openerName} has updated` +
+    const message = `Looks like ${openerName} has updated ` +
     `<${body.pull_request.html_url}|${body.pull_request.base.repo.name} PR #${body.number}> ` +
     `"${body.pull_request.title}" that you reviewed. Please take another look!`;
     const msgObj = {
