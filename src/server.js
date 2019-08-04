@@ -15,9 +15,11 @@ const { openDM } = require('./lib/slack/message');
 // Handle errors (see `errorCodes` export)
 
 
-if (config.get('slack_manager_id')) {
-  openDM(config.get('slack_manager_id'))
-    .then(dmChannelId => slackCommon.generateAndSendBootMessage(dmChannelId));
+if (config.has('slack_manager_ids') && Array.isArray(config.get('slack_manager_ids'))) {
+  config.get('slack_manager_ids').forEach(slackId => {
+    return openDM(slackId)
+      .then(dmChannelId => slackCommon.generateAndSendBootMessage(dmChannelId));
+  });
 } else {
   logger.warn('[BOOT] No admin user listed for bootup message.');
 }
