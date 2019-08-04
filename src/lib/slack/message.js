@@ -81,7 +81,7 @@ function openDM(userId) {
 
 // allows for more complicated checks in the future
 async function silenced(user) {
-  return (!user || !user.requestable);
+  return (!user || user.notifications === false);
 }
 
 // have to find the DM channel ID, then send a message on that channel.

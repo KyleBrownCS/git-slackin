@@ -86,6 +86,29 @@ async function activateUserBySlackId(id) {
   return users;
 }
 
+async function muteNotificationsBySlackId(id) {
+  users.map(user => {
+    if (user.slack.id.toLowerCase() === id.toLowerCase()) {
+      user.notifications = false;
+    }
+    return user;
+  });
+  await synchronizeUserList();
+  logger.info('[USERS] Update user_list file');
+  return users;
+}
+
+async function unmuteNotificationsBySlackId(id) {
+  users.map(user => {
+    if (user.slack.id.toLowerCase() === id.toLowerCase()) {
+      user.notifications = true;
+    }
+    return user;
+  });
+  await synchronizeUserList();
+  return users;
+}
+
 async function listAllUserNamesByAvailability() {
   const availableUsers = await listAvailableUsers(true);
   const benchedUsers = await listBenchedUsers(true);
@@ -112,4 +135,6 @@ module.exports = {
   listAvailableUsers,
   benchUserBySlackId,
   activateUserBySlackId,
+  muteNotificationsBySlackId,
+  unmuteNotificationsBySlackId,
 };

@@ -2,7 +2,8 @@ const logger = require('../../logger');
 const config = require('config');
 const common = require('./common');
 const { sendToChannel, sendEphemeralMessage, send } = require('./message');
-const { benchUserBySlackId, activateUserBySlackId, findBySlackUserId } = require('../users');
+const { benchUserBySlackId, activateUserBySlackId, findBySlackUserId,
+  muteNotificationsBySlackId, unmuteNotificationsBySlackId } = require('../users');
 const appRoot = require('app-root-path');
 const fs = require('fs');
 const configFile = `${appRoot}/config/development.json`;
@@ -49,7 +50,8 @@ async function updateGitSlackin(theEvent, branch = 'master') {
 }
 
 async function handleAdminCommands(command, theEvent, res) {
-  if (!config.has('slack_manager_ids') || config.get('slack_manager_ids').find(userId => theEvent.user === userId)) {
+  if (!config.has('slack_manager_ids')
+    || config.get('slack_manager_ids').find(userId => theEvent.user === userId)) {
     return sendEphemeralMessage(theEvent.channel, theEvent.user, 'This command is Admin-only or does not exist.');
   }
 
@@ -139,23 +141,39 @@ async function handleCommands(text, theEvent, res) {
       'Hey.');
   }
 
-  if (smallText === 'stop' || smallText === 'silence' || smallText === 'mute') {
+  if (smallText === 'stop') {
     logger.info(`[DM Event] ${theEvent.user} benched themselves.`);
     benchUserBySlackId(theEvent.user);
     return sendEphemeralMessage(theEvent.channel, theEvent.user,
-      'You are now benched/muted/unrequestable :no_bell:');
+      'You are now benched and are unrequestable :no:');
   }
-  if (smallText === 'start' || smallText === 'notify') {
+
+  if (smallText === 'silence' || smallText === 'mute') {
+    logger.info(`[DM Event] ${theEvent.user} turned off notifications`);
+    muteNotificationsBySlackId(theEvent.user);
+    return sendEphemeralMessage(theEvent.channel, theEvent.user,
+      'Your Git Slackin notifications are now muted :no_bell:');
+  }
+
+  if (smallText === 'notify' || smallText === 'unmute') {
+    logger.info(`[DM Event] ${theEvent.user} turned on notifications`);
+    unmuteNotificationsBySlackId(theEvent.user);
+    return sendEphemeralMessage(theEvent.channel, theEvent.user,
+      'Your Git Slackin notifications are now unmuted :bell:');
+  }
+
+  if (smallText === 'start') {
     logger.info(`[DM Event] ${theEvent.user} activated themselves.`);
     activateUserBySlackId(theEvent.user);
-    return sendEphemeralMessage(theEvent.channel, theEvent.user, 'You are now Requestable :bell:');
+    return sendEphemeralMessage(theEvent.channel, theEvent.user, 'You are now Requestable :yes:');
   }
   if (smallText === 'status') {
     const user = await findBySlackUserId(theEvent.user);
     logger.info(`[DM Event] ${theEvent.user} requested their status.`);
     return sendEphemeralMessage(theEvent.channel, theEvent.user, `You are <@${user.slack.id}> here and ` +
     `<https://github.com/${user.github}|@${user.github}> on GitHub.\n` +
-    `Your current Git Slackin' status is: ${user.requestable ? 'Requestable :bell:' : 'Silenced :no_bell:'}.`);
+    `Your current Git Slackin' status is: ${user.requestable ? 'Requestable :yes:' : 'UnRequestable :no:'}.\n` +
+    `Your current Git Slackin' notification mode is: ${user.notifications ? 'On :bell:' : 'Off :no_bell'}`);
   }
 
   if (smallText === 'help') {
