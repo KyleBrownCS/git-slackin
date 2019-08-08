@@ -48,12 +48,21 @@ Get Command List
 
 Bench Yourself
 
-* Say `stop`, `silence`, or `mute`
-* This means you will not be requested or messaged by Git Slackin'
+* Say `stop`
+* This means you will not be requested by Git Slackin'
 
-Activate Notifications
+Unbench Yourself
 
-* Say `start`, or `notify`
+* Say `start`
+* You will now be requestable by Git Slackin'
+
+Notifcations
+
+Turn on
+* Say `notify` or `unmute`
+
+Turn off
+* Say `silence`, or `mute`
 
 Am I requestable?
 
