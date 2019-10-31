@@ -11,7 +11,8 @@ const configuration = require(configFile);
 const simpleGit = require('simple-git/promise')(appRoot.path);
 
 function challenge(req, res, next) {
-  return res.send(req.body.challenge);
+  logger.info(`Slack Challenge: ${JSON.stringify(req.body)}`);
+  return res.status(200).type('text/plain').send(req.body.challenge);
 }
 
 
