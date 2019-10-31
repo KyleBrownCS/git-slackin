@@ -51,7 +51,7 @@ async function updateGitSlackin(theEvent, branch = 'master') {
 
 async function handleAdminCommands(command, theEvent, res) {
   if (!config.has('slack_manager_ids')
-    || config.get('slack_manager_ids').find(userId => theEvent.user === userId)) {
+    || !config.get('slack_manager_ids').includes(theEvent.user)) {
     return sendEphemeralMessage(theEvent.channel, theEvent.user, 'This command is Admin-only or does not exist.');
   }
 
@@ -173,7 +173,7 @@ async function handleCommands(text, theEvent, res) {
     return sendEphemeralMessage(theEvent.channel, theEvent.user, `You are <@${user.slack.id}> here and ` +
     `<https://github.com/${user.github}|@${user.github}> on GitHub.\n` +
     `Your current Git Slackin' status is: ${user.requestable ? 'Requestable :yes:' : 'UnRequestable :no:'}.\n` +
-    `Your current Git Slackin' notification mode is: ${user.notifications ? 'On :bell:' : 'Off :no_bell'}`);
+    `Your current Git Slackin' notification mode is: ${user.notifications ? 'On :bell:' : 'Off :no_bell:'}`);
   }
 
   if (smallText === 'help') {
