@@ -19,14 +19,15 @@ const { openDM } = require('./lib/slack/message');
 
 // Handle errors (see `errorCodes` export)
 
-
-if (config.has('slack_manager_ids') && Array.isArray(config.get('slack_manager_ids'))) {
+if (process.env.GS_DEAD_SILENT) {
+  logger.warn('[BOOT] Silent Running, not even telling the managers... Shhhh....');
+} else if (config.has('slack_manager_ids') && Array.isArray(config.get('slack_manager_ids'))) {
   config.get('slack_manager_ids').forEach(slackId => {
     return openDM(slackId)
       .then(dmChannelId => slackCommon.generateAndSendBootMessage(dmChannelId));
   });
 } else {
-  logger.warn('[BOOT] No admin user listed for bootup message.');
+  logger.warn('[BOOT] No admin user listed for bootup message or set to silent');
 }
 // silent just means it won't announce it to the entire team every time.
 if (process.env.GS_SILENT || (config.has('silent_boot') && config.get('silent_boot') === true)) {
