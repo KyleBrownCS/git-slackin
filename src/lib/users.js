@@ -9,6 +9,29 @@ async function synchronizeUserList() {
   return fs.writeFileSync(userListFilePath, JSON.stringify(users, null, 2), 'utf-8');
 }
 
+// Register new users with some sane defaults
+async function createUser(
+  name, slackInfo, githubUsername,
+  { requestable = true, merger = false, review_action = 'respond', notifications = true } = {}
+) {
+  const newUser = {
+    name,
+    slack: {
+      name: slackInfo.name,
+      id: slackInfo.id,
+    },
+    github: githubUsername,
+    requestable,
+    merger,
+    review_action,
+    notifications,
+  };
+
+  users.push(newUser);
+  logger.info(`[USERS] New User created: ${JSON.stringify(newUser)}`);
+  return await synchronizeUserList();
+}
+
 // Randomly select <numUsers> github users that are not <notMe>
 async function selectRandomGithubUsersNot(notMe, numUsers = 1) {
   const usersToReturn = [];
@@ -127,6 +150,7 @@ async function listAllUserNamesByAvailability() {
 }
 
 module.exports = {
+  createUser,
   selectRandomGithubUsersNot,
   findByGithubName,
   findBySlackUserId,
