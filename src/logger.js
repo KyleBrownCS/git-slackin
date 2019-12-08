@@ -14,7 +14,10 @@ const options = {
   },
   console: {
     level: 'debug',
-    format: winston.format.cli(),
+    format: combine(
+      timestamp(),
+      winston.format.cli()
+    ),
   },
 };
 

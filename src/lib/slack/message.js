@@ -1,4 +1,4 @@
-const { WebClient } = require('@slack/client');
+const { WebClient } = require('@slack/web-api');
 const config = require('config');
 const { findBySlackUserId } = require('../users');
 const logger = require('../../logger');
@@ -44,8 +44,7 @@ function sendMessage(conversationId, message) {
       return res;
     })
     .catch(e => {
-      logger.error(e);
-      throw e;
+      logger.error(`[slack.message.sendMessage] Error '${e.code}': ${e.data.error}\nDetails:\n${JSON.stringify(e.data)}`);
     });
 }
 
