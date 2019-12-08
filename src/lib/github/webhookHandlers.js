@@ -1,5 +1,6 @@
 const octokit = require('@octokit/rest')();
 const config = require('config');
+const shortid = require('shortid');
 
 // My Modules
 const logger = require('../../logger');
@@ -103,24 +104,26 @@ async function requestReviewersAndAssignees(users, body) {
 }
 
 async function requestReviewByGithubName(body) {
-  const opener = await findByGithubName(body.pull_request.user.login);
+  const logId = shortid.generate();
+  const opener = await findByGithubName(body.pull_request.user.login, logId);
   const openerName = opener ? opener.name : body.pull_request.user.login;
-  const requestedReviewer = await findByGithubName(body.requested_reviewer.login);
+  const requestedReviewer = await findByGithubName(body.requested_reviewer.login, logId);
   if (requestedReviewer && requestedReviewer.slack) {
     return await sendReviewRequestMessage(openerName, requestedReviewer, body);
   }
-  return logger.warn('[Request Review] Cannot find user');
+  return logger.warn(`[github.requestReviewByGithubName:${logId}] Cannot find user`);
 }
 
 // Handle everything we want to do about opening a PR.
 // v1: randomly pick 2 users and send them links on Slack
 async function prOpened(body) {
+  const logId = shortid.generate();
   try {
     // TODO: Have findByGithubName fail better if it can't find the person
-    const opener = await findByGithubName(body.pull_request.user.login);
+    const opener = await findByGithubName(body.pull_request.user.login, logId);
     const wipRegex = /^\[*\s*WIP\s*\]*\s+/gi;
     if (wipRegex.test(body.pull_request.title) && opener) {
-      send(opener,
+      return send(opener,
         `Are you sure you meant to open PR <${body.pull_request.html_url}|${body.pull_request.title}>? ` +
         'You marked it Work in Progress. So I will ignore it');
     }
@@ -130,7 +133,7 @@ async function prOpened(body) {
     const numReviewersToRandomlySelect = NUM_REVIEWERS - numReviewersAlready;
 
     const preselectedUsers = await Promise.all(body.pull_request.assignees.map(user => {
-      return findByGithubName(user.login);
+      return findByGithubName(user.login, logId);
     }));
     const notTheseUsers = opener ? preselectedUsers.concat(opener.github) : preselectedUsers;
     const randomUsers = await selectRandomGithubUsersNot(notTheseUsers, numReviewersToRandomlySelect);
@@ -143,9 +146,9 @@ async function prOpened(body) {
     }
 
     const openerName = opener ? opener.name : body.pull_request.user.login;
-    return logger.info(`[PR Opened] Opener: ${openerName} Reviewers Messaged: ${users.map(user => user.name)}`);
+    return logger.info(`[github.prOpened:${logId}] Opener: ${openerName} Reviewers Messaged: ${users.map(user => user.name)}`);
   } catch (e) {
-    logger.error(`[PR Opened] Error: ${e}`);
+    logger.error(`[github.prOpened:${logId}] Error: ${e}`);
     throw e;
   }
 }
@@ -190,28 +193,29 @@ async function checkForReviews({ owner, repo, number }) {
 // https://api.slack.com/methods/chat.delete
 async function prReviewed(body) {
   let reviewer, coder;
+  const logId = shortid.generate();
   try {
-    reviewer = await findByGithubName(body.review.user.login);
-    coder = await findByGithubName(body.pull_request.user.login);
-    if (!reviewer) throw new Error('Reviewer not registered with git slackin');
-    if (!coder) throw new Error('Coder not registered with git slackin');
+    reviewer = await findByGithubName(body.review.user.login, logId);
+    coder = await findByGithubName(body.pull_request.user.login, logId);
+    if (!reviewer) throw new Error(`[github.prReviewed:${logId}] Reviewer not registered with git slackin`);
+    if (!coder) throw new Error(`[github.prReviewed:${logId}] Coder not registered with git slackin`);
   } catch (e) {
-    logger.error(`[PR Reviewed] Error: ${e}`);
+    logger.error(`[github.prReviewed:${logId}] Error: ${e}`);
     throw e;
   }
 
   if (!reviewer) {
-    logger.error('[PR Reviewed] Missing Reviewer from user list.');
+    logger.error('[github.prReviewed:${logId}] Missing Reviewer from user list.');
     throw new Error('Could not finder reviewer or coder');
   }
 
   if (!coder) {
-    logger.error('[PR Reviewed] Missing Coder from user list.');
+    logger.error('[github.prReviewed:${logId}] Missing Coder from user list.');
     throw new Error('Could not finder reviewer or coder');
   }
 
   if (reviewer.slack.id === coder.slack.id) {
-    const exitEarlyMsg = '[PR Reviewed] No need to notify for commenting on your own PR';
+    const exitEarlyMsg = '[github.prReviewed:${logId}] No need to notify for commenting on your own PR';
     logger.debug(exitEarlyMsg);
     return exitEarlyMsg;
   }
@@ -248,7 +252,7 @@ async function prReviewed(body) {
       return await notifyMergers(mergerMessage);
     }
   } catch (e) {
-    logger.error(`[PR Reviewed] Error: ${e}`);
+    logger.error(`[github.prReviewed:${logId}] Error: ${e}`);
     throw new Error(e);
   }
 }
@@ -292,10 +296,11 @@ function sendPrUpdatedMessage(openerName, users, body) {
 }
 
 async function prSynchronize(body) {
-  const opener = await findByGithubName(body.pull_request.user.login);
+  const logId = shortid.generate();
+  const opener = await findByGithubName(body.pull_request.user.login, logId);
   const openerName = opener ? opener.name : body.pull_request.user.login;
   const reviewers = await Promise.all(body.pull_request.requested_reviewers.map(user => {
-    return findByGithubName(user.login);
+    return findByGithubName(user.login, logId);
   }));
 
   return await sendPrUpdatedMessage(openerName, reviewers, body);
@@ -316,18 +321,19 @@ async function notifyOpenerPRClosed(opener, body, merged) {
 }
 
 async function prClosed(body) {
+  const logId = shortid.generate();
   try {
-    const opener = await findByGithubName(body.pull_request.user.login);
+    const opener = await findByGithubName(body.pull_request.user.login, logId);
 
     // From https://developer.github.com/v3/activity/events/types/#pullrequestevent action key
     if (opener) {
       await notifyOpenerPRClosed(opener, body.pull_request, body.pull_request.merged);
     } else {
-      return logger.warn('[PR Closed] No slack user to message');
+      return logger.warn(`[github.pr.closed:${logId}] No slack user to message`);
     }
-    return logger.info(`[PR Closed] PR Opener notified`);
+    return logger.info(`[github.pr.closed:${logId}] PR Opener notified`);
   } catch (e) {
-    logger.error(`[PR Closed] Error: ${e}`);
+    logger.error(`[github.pr.closed:${logId}] Error: ${e}`);
     throw e;
   }
 }

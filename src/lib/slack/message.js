@@ -2,6 +2,7 @@ const { WebClient } = require('@slack/web-api');
 const config = require('config');
 const { findBySlackUserId } = require('../users');
 const logger = require('../../logger');
+const GitSlackinError = require('../../GitSlackinError');
 
 // Setup Slack web client
 const token = config.get('slack');
@@ -44,7 +45,12 @@ function sendMessage(conversationId, message) {
       return res;
     })
     .catch(e => {
-      logger.error(`[slack.message.sendMessage] Error '${e.code}': ${e.data.error}\nDetails:\n${JSON.stringify(e.data)}`);
+      const err = new GitSlackinError(
+        'slack.message.sendMessage',
+        e,
+        `Error '${e.code}': ${e.data.error}. Details: ${JSON.stringify(e.data)}`
+      );
+      err.log();
     });
 }
 
@@ -59,9 +65,8 @@ function sendEphemeralMessage(conversationId, userId, message) {
       return res;
     })
     .catch(e => {
-      logger.error('EPHEMERAL ERROR:');
-      logger.error(e);
-      // throw e;
+      const err = new GitSlackinError('slack.message.sendEphemeralMessage', e);
+      err.log(e);
     });
 }
 
@@ -87,13 +92,21 @@ async function silenced(user) {
 // just using the user ID sends the message via @slackbot instead.
 async function sendDM(userId, message, { force = false } = {}) {
   const user = await findBySlackUserId(userId);
-  const cannotSend = await silenced(user);
-  if (cannotSend && !force) return logger.info(`[DM] Shh ${user.name} should not be bothered`);
+  if (user) {
+    const cannotSend = await silenced(user);
+    if (cannotSend && !force) return logger.info(`[DM] Shh ${user.name} should not be bothered`);
 
-  return openDM(userId)
-    .then(dmChannelId => {
-      return sendMessage(dmChannelId, message);
-    });
+    return openDM(userId)
+      .then(dmChannelId => {
+        return sendMessage(dmChannelId, message);
+      })
+      .then(result => {
+        return true;
+      });
+  } else {
+    logger.error('[slack.message.sendDM] Could not find user to message');
+    return false;
+  }
 }
 
 

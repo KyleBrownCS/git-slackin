@@ -54,12 +54,20 @@ async function selectRandomGithubUsersNot(notMe, numUsers = 1) {
 }
 
 // Look up a single user quickly or return null for easy comparisons
-async function findByGithubName(name) {
+async function findByGithubName(name, logId) {
+  if (!name) {
+    logger.warn(`[users.findByGithubName:${logId}] Must pass name`);
+    return null;
+  }
   return users.find(element => element.github && element.github.toLowerCase() === name.toLowerCase()) || null;
 }
 
 // Look up a single user quickly or return null for easy comparisons
-async function findBySlackUserId(slackId) {
+async function findBySlackUserId(slackId, logId) {
+  if (!slackId) {
+    logger.warn(`[users.findBySlackUserId:${logId}] Must pass slack id`);
+    return null;
+  }
   return users.find((element) => {
     return element.slack && element.slack.id && element.slack.id.toLowerCase() === slackId.toLowerCase();
   }) || null;
@@ -87,33 +95,52 @@ async function filterUsers({ prop, val }) {
   return users.filter(user => user[prop] && user[prop] === val);
 }
 
-async function benchUserBySlackId(id) {
+async function benchUserBySlackId(id, logId) {
+  if (!id) return logger.info(`[users.benchUserBySlackId:${logId}] id required to bench user.`);
+  let updated = false;
+
   users.map(user => {
-    if (user.slack.id.toLowerCase() === id.toLowerCase()) {
+    if (user.slack && user.slack.id.toLowerCase() === id.toLowerCase()) {
       user.requestable = false;
+      updated = true;
     }
     return user;
   });
   await synchronizeUserList();
-  logger.info('[USERS] Update user_list file');
-  return users;
+  if (updated) {
+    logger.info(`[users.benchUserBySlackId:${logId}] Benched user: ${id}. user_list file`);
+  } else {
+    logger.info(`[users.benchUserBySlackId:${logId}] Could not find user ${id} to bench.`);
+  }
+  return updated;
 }
 
 
-async function activateUserBySlackId(id) {
+async function activateUserBySlackId(id, logId) {
+  if (!id) return logger.info(`[users.activateUserBySlackId:${logId}] id required to activate user.`);
+
+  let updated = false;
   users.map(user => {
-    if (user.slack.id.toLowerCase() === id.toLowerCase()) {
+    if (user.slack && user.slack.id.toLowerCase() === id.toLowerCase()) {
       user.requestable = true;
+      updated = true;
     }
     return user;
   });
   await synchronizeUserList();
+  if (updated) {
+    logger.info(`[users.activateUserBySlackId:${logId}] Benched user: ${id}. user_list file`);
+  } else {
+    logger.info(`[users.activateUserBySlackId:${logId}] Could not find user ${id} to bench.`);
+  }
   return users;
 }
 
-async function muteNotificationsBySlackId(id) {
+async function muteNotificationsBySlackId(id, logId) {
+  if (!id) return logger.info(`[users.muteNotificationsBySlackId:${logId}] id required to mute notifications.`);
+
   users.map(user => {
-    if (user.slack.id.toLowerCase() === id.toLowerCase()) {
+    if (user.slack && user.slack.id.toLowerCase() === id.toLowerCase()) {
       user.notifications = false;
     }
     return user;
@@ -123,9 +150,11 @@ async function muteNotificationsBySlackId(id) {
   return users;
 }
 
-async function unmuteNotificationsBySlackId(id) {
+async function unmuteNotificationsBySlackId(id, logId) {
+  if (!id) return logger.info(`[users.unmuteNotificationsBySlackId:${logId}] id needed to unmute notifications.`);
+
   users.map(user => {
-    if (user.slack.id.toLowerCase() === id.toLowerCase()) {
+    if (user.slack && user.slack.id.toLowerCase() === id.toLowerCase()) {
       user.notifications = true;
     }
     return user;
