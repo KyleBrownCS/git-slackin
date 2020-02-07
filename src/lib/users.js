@@ -35,8 +35,6 @@ async function createUser(
 // Randomly select <numUsers> github users that are not excluded
 async function selectRandomGithubUsers(excludedUsers, repository, numUsers = 1) {
   const excludedGithubNames = Array.isArray(excludedUsers) ? excludedUsers : [excludedUsers];
-  // Standardize repository name
-  repository = repository.toLowerCase()
 
   // Get all available users for this repository that are currently requestable
   const availableUsers = users.filter(user => {
