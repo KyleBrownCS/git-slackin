@@ -100,15 +100,17 @@ http.createServer(app)
     logger.info(`server is listening on ${port} in mode: ${process.env.NODE_ENV}`);
   });
 
-https.createServer({
-  key: fs.readFileSync(path.join(__dirname, '..', 'letsencrypt', 'key.pem')),
-  cert: fs.readFileSync(path.join(__dirname, '..', 'letsencrypt', 'cert.pem')),
-  ca: fs.readFileSync(path.join(__dirname, '..', 'letsencrypt', 'chain.pem')),
-}, app)
-  .listen(httpsPort, (err) => {
-    if (err) {
-      return logger.error('something bad happened', err);
-    }
+if (!process.env.GS_INSECURE) {
+  https.createServer({
+    key: fs.readFileSync(path.join(__dirname, '..', 'letsencrypt', 'key.pem')),
+    cert: fs.readFileSync(path.join(__dirname, '..', 'letsencrypt', 'cert.pem')),
+    ca: fs.readFileSync(path.join(__dirname, '..', 'letsencrypt', 'chain.pem')),
+  }, app)
+    .listen(httpsPort, (err) => {
+      if (err) {
+        return logger.error('something bad happened', err);
+      }
 
-    logger.info(`server is listening on ${port} in mode: ${process.env.NODE_ENV}`);
-  });
+      logger.info(`server is listening on ${port} in mode: ${process.env.NODE_ENV}`);
+    });
+}
