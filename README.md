@@ -20,6 +20,16 @@ Features and commands listed below
   * Please include all Pull Request related events (not all used yet)
 * Start making Pull Requests!
 
+## Config Details
+
+Configure your `development.json` to the following:
+
+- github_token: A personal access token which you can create [here](https://github.com/settings/tokens)
+- github_secret: A random secret string that will be applied to your webhook to push notifications
+- slack: Slack application xoxb OAuth Access Token. You'll need to create a new app [here](https://api.slack.com/apps). It does not need to be distributed.
+- slack_manager_ids: Slack Id of someone to direct message on boot. This can be retrieved from slack by viewing a profile, selecting the `...` and "Copy member id" for the appropriate user
+- slack_announce_channel_id: The channel you wish to announce things to. The easiest way to find the correct room is to use the slack browser, navigate to the channel you want and taking the last string. Example:  `https://app.slack.com/client/<clientId>/<slack_announce_channel_id>`
+
 ## Current Features
 
 * Announces itself to admin and channel (if provided)
