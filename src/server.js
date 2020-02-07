@@ -4,18 +4,18 @@ const http = require('http');
 const https = require('https'); // TODO: Use this to serve up HTTPS properly
 const fs = require('fs');
 const path = require('path');
-const port = 8778;
-const httpsPort = 8779;
 const bodyParser = require('body-parser');
 const config = require('config');
 const logger = require('./logger');
-// My modules
+
 const githubWebhooks = require('./lib/github/webhookRouter');
 const slackAction = require('./lib/slack/actionHandlers');
 const slackEventHandler = require('./lib/slack/eventHandlers');
 const slackCommon = require('./lib/slack/common');
 const { openDM } = require('./lib/slack/message');
-// Bootup message stuff
+
+const port = 8778;
+const httpsPort = 8779;
 
 // Handle errors (see `errorCodes` export)
 
@@ -49,8 +49,8 @@ app.use(bodyParser.urlencoded({ extended: true }));
 // Basic web server to handle payloads
 app.post('/payload', (req, res) => {
   if (req.headers['x-github-event'] === 'pull_request' ||
-  req.headers['x-github-event'] === 'pull_request_review' ||
-  req.headers['x-github-event'] === 'pull_request_review_comment') {
+    req.headers['x-github-event'] === 'pull_request_review' ||
+    req.headers['x-github-event'] === 'pull_request_review_comment') {
     return githubWebhooks.handle(req.body, {
       signature: req.headers['x-hub-signature'],
       webhookId: req.headers['x-github-delivery'],
