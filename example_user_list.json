@@ -6,6 +6,13 @@
     "slack": {
       "name": "james.firth",
       "id": "UZZZZZZZZ"
+    },
+    "repositories": {
+      "user-name/repository": {
+        "requestable": true,
+        "merger": false,
+        "notifications": true
+      }
     }
   }
 ]

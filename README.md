@@ -13,6 +13,7 @@ Features and commands listed below
   * Base it off of `config/example.json`
 * Create a `user_list.json` with all the users you want involved
   * Base it off of `example_user_list.json`
+  * Ensure that any repositories registered are cased appropriately, they are case sensitive
   * _Note:_ future goal is for this to live in a DB and for users to sign themselves up
 * Run service `npm start`
   * If running on a local machine use `ngrok` to make endpoint available to the internet
