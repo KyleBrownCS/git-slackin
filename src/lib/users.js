@@ -33,20 +33,26 @@ async function createUser(
 }
 
 // Randomly select <numUsers> github users that are not excluded
-async function selectRandomGithubUsers(excludedUsers, numUsers = 1) {
-  const usersToReturn = [];
+async function selectRandomGithubUsers(excludedUsers, repository, numUsers = 1) {
   const excludedGithubNames = Array.isArray(excludedUsers) ? excludedUsers : [excludedUsers];
+  // Standardize repository name
+  repository = repository.toLowerCase()
 
-  while (usersToReturn.length < numUsers) {
-    // Select a random user that is not the one we passed based on github name
-    const otherUsers = users.filter(current => {
-      // Make sure its not themselves, and only people who are requestable
-      return !excludedGithubNames.includes(current.github) && current.requestable;
-    });
-    if (otherUsers.length < 1) throw new Error('Not enough other users');
+  // Get all available users for this repository that are currently requestable
+  const availableUsers = users.filter(user => {
+    let repositoryRequestable = false;
+    if (repository in user.repositories) {
+      repositoryRequestable = repositoryRequestable = user.repositories[repository].requestable
+    }
+    return !excludedGithubNames.includes(user.github) && user.requestable && repositoryRequestable;
+  });
 
-    const randomIndex = Math.floor(Math.random() * otherUsers.length);
-    const selectedUser = otherUsers[randomIndex];
+  if (availableUsers.length < 1) throw new Error(`Not enough available users for repository ${repository}`);
+
+  const usersToReturn = [];
+  while (usersToReturn.length < numUsers && availableUsers.length > 0) {
+    const randomIndex = Math.floor(Math.random() * availableUsers.length);
+    const selectedUser = availableUsers.splice(randomIndex, 1)[0];
     usersToReturn.push(selectedUser);
     excludedGithubNames.push(selectedUser.github);
   }

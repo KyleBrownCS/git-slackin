@@ -136,7 +136,7 @@ async function prOpened(body) {
       return findByGithubName(user.login, logId);
     }));
     const notTheseUsers = opener ? preselectedUsers.concat(opener.github) : preselectedUsers;
-    const randomUsers = await selectRandomGithubUsers(notTheseUsers, numReviewersToRandomlySelect);
+    const randomUsers = await selectRandomGithubUsers(notTheseUsers, body.repository.full_name, numReviewersToRandomlySelect);
     const users = preselectedUsers.concat(randomUsers);
 
     // TODO: Handle it better if either fails
