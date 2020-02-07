@@ -79,7 +79,7 @@ async function requestReviewersAndAssignees(users, body) {
   try {
     const githubUsers = users.map(user => user.github);
 
-    // Should probably look at the results to check if reviewres are there.
+    // Should probably look at the results to check if reviewers are there.
     const reviewRequests = await octokit.pullRequests.createReviewRequest({
       owner: body.pull_request.base.repo.owner.login,
       repo: body.pull_request.base.repo.name,
