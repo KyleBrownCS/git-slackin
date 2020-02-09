@@ -40,7 +40,7 @@ async function selectRandomGithubUsers(excludedUsers, repository, numUsers = 1) 
   const availableUsers = users.filter(user => {
     let repositoryRequestable = false;
     if (repository in user.repositories) {
-      repositoryRequestable = repositoryRequestable = user.repositories[repository].requestable
+      repositoryRequestable = user.repositories[repository].requestable
     }
     return !excludedGithubNames.includes(user.github) && user.requestable && repositoryRequestable;
   });
