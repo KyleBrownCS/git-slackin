@@ -9,7 +9,7 @@ async function synchronizeUserList() {
   return fs.writeFileSync(userListFilePath, JSON.stringify(users, null, 2), 'utf-8');
 }
 
-// Register new users with some same defaults
+// Register new users with some sane defaults
 async function createUser(
   name, slackInfo, githubUsername,
   { requestable = true, merger = false, review_action = 'respond', notifications = true } = {}
